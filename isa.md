@@ -1,8 +1,11 @@
 # SecureRISC - Arquitectura del Set de Instrucciones
 
 **Proyecto Grupal #1 - Arquitectura de Computadores I**  
-**Grupo:** [Número de Grupo]  
-**Integrante 1 - Arquitecto ISA:** [Nombre]
+**Grupo:** 1  
+**Integrante 1 - Arquitecto ISA:** Kendall Martínez Carvajal
+**Integrante 2 - Diseñador de Microarquitectura:** Marco Villatoro Chacon
+**Integrante 3 - Programador del simulador:** Andrés Alfaro Mayorga
+**Integrante 4 - Programador ensamblador:** Daniel Ureña López
 
 ---
 
@@ -25,10 +28,10 @@
 
 **SecureRISC** es una arquitectura del set de instrucciones (ISA) RISC de 64 bits diseñada específicamente para aplicaciones de seguridad de la información. La arquitectura provee soporte nativo para:
 
-- ✅ Función hash criptográfica ToyMDMA
-- ✅ Almacenamiento seguro de llaves privadas (bóveda)
-- ✅ Operaciones de firma y verificación digital
-- ✅ Ejecución eficiente con pipeline de 5 etapas
+- Función hash criptográfica ToyMDMA
+- Almacenamiento seguro de llaves privadas (bóveda)
+- Operaciones de firma y verificación digital
+- Ejecución eficiente con pipeline de 5 etapas
 
 ### Filosofía de Diseño
 
@@ -172,27 +175,27 @@ Todas las instrucciones tienen **32 bits** de longitud.
 
 | Mnemónico | Formato | Sintaxis | Operación | Funct |
 |-----------|---------|----------|-----------|-------|
-| SLL | R | `SLL rd, rs1, rs2` | rd = rs1 << rs2 | 0x00 |
-| SRL | R | `SRL rd, rs1, rs2` | rd = rs1 >> rs2 | 0x01 |
+| SLL | R | `SLL rd, rs1, rs2` | rd = rs1 << rs2            | 0x00 |
+| SRL | R | `SRL rd, rs1, rs2` | rd = rs1 >> rs2            | 0x01 |
 | ROL | R | `ROL rd, rs1, rs2` | rd = rotate_left(rs1, rs2) | 0x02 |
 
 ### Instrucciones con Inmediato (Opcode 0x03)
 
 | Mnemónico | Formato | Sintaxis | Operación |
 |-----------|---------|----------|-----------|
-| ADDI | I | `ADDI rd, rs1, imm` | rd = rs1 + imm |
-| SUBI | I | `SUBI rd, rs1, imm` | rd = rs1 - imm |
-| ANDI | I | `ANDI rd, rs1, imm` | rd = rs1 & imm |
-| ORI | I | `ORI rd, rs1, imm` | rd = rs1 \| imm |
-| XORI | I | `XORI rd, rs1, imm` | rd = rs1 ^ imm |
+| ADDI | I | `ADDI rd, rs1, imm` | rd = rs1 + imm  |
+| SUBI | I | `SUBI rd, rs1, imm` | rd = rs1 - imm  |
+| ANDI | I | `ANDI rd, rs1, imm` | rd = rs1 & imm  |
+| ORI  | I | `ORI rd, rs1, imm`  | rd = rs1 \| imm |
+| XORI | I | `XORI rd, rs1, imm` | rd = rs1 ^ imm  |
 | SLLI | I | `SLLI rd, rs1, imm` | rd = rs1 << imm |
-| LUI | I | `LUI rd, imm` | rd = imm << 48 |
+| LUI  | I | `LUI rd, imm`       | rd = imm << 48  |
 
 ### Instrucciones de Memoria
 
 | Mnemónico | Opcode | Formato | Sintaxis | Operación |
 |-----------|--------|---------|----------|-----------|
-| LD | 0x04 | I | `LD rd, offset(rs1)` | rd = MEM[rs1 + offset] |
+| LD | 0x04 | I | `LD rd, offset(rs1)`  | rd = MEM[rs1 + offset]  |
 | SD | 0x05 | S | `SD rs2, offset(rs1)` | MEM[rs1 + offset] = rs2 |
 
 ### Instrucciones de Control de Flujo
@@ -203,22 +206,22 @@ Todas las instrucciones tienen **32 bits** de longitud.
 |-----------|-----------|----------|-----------|
 | BEQ | rs1 == rs2 | `BEQ rs1, rs2, offset` | if (rs1 == rs2) PC += offset |
 | BNE | rs1 != rs2 | `BNE rs1, rs2, offset` | if (rs1 != rs2) PC += offset |
-| BLT | rs1 < rs2 | `BLT rs1, rs2, offset` | if (rs1 < rs2) PC += offset |
+| BLT | rs1 < rs2  | `BLT rs1, rs2, offset` | if (rs1 < rs2) PC += offset  |
 | BGE | rs1 >= rs2 | `BGE rs1, rs2, offset` | if (rs1 >= rs2) PC += offset |
 
 #### Jumps
 
 | Mnemónico | Opcode | Sintaxis | Operación |
 |-----------|--------|----------|-----------|
-| J | 0x07 | `J addr` | PC = addr |
+| J   | 0x07 | `J addr`       | PC = addr            |
 | JAL | 0x07 | `JAL rd, addr` | rd = PC+4; PC = addr |
-| JR | 0x08 | `JR rs1` | PC = rs1 |
+| JR  | 0x08 | `JR rs1`       | PC = rs1             |
 
 ### Instrucciones de Sistema (Opcode 0x3F)
 
 | Mnemónico | Sintaxis | Operación |
 |-----------|----------|-----------|
-| NOP | `NOP` | No operation |
+| NOP  | `NOP`  | No operation         |
 | HALT | `HALT` | Detiene la ejecución |
 
 ---
@@ -364,11 +367,11 @@ HFINAL R12          # Extrae hash recalculado a R12-R15
 
 | Modo | Ejemplo | Descripción |
 |------|---------|-------------|
-| **Registro** | `ADD R3, R1, R2` | Operandos en registros |
-| **Inmediato** | `ADDI R1, R2, 100` | Constante en la instrucción |
-| **Base + Offset** | `LD R1, 8(R2)` | Dirección = R2 + 8 |
-| **Absoluto** | `J 0x1000` | Dirección directa |
-| **PC-Relativo** | `BEQ R1, R2, 16` | Dirección = PC + offset |
+| **Registro**      | `ADD R3, R1, R2`   | Operandos en registros      |
+| **Inmediato**     | `ADDI R1, R2, 100` | Constante en la instrucción |
+| **Base + Offset** | `LD R1, 8(R2)`     | Dirección = R2 + 8          |
+| **Absoluto**      | `J 0x1000`         | Dirección directa           |
+| **PC-Relativo**   | `BEQ R1, R2, 16`   | Dirección = PC + offset     |
 
 ---
 
@@ -378,19 +381,19 @@ HFINAL R12          # Extrae hash recalculado a R12-R15
 
 | Opcode | Hex | Binario | Categoría |
 |--------|-----|---------|-----------|
-| 0x00 | 00 | 000000 | Aritmética |
-| 0x01 | 01 | 000001 | Lógica |
-| 0x02 | 02 | 000010 | Shift/Rotate |
-| 0x03 | 03 | 000011 | Inmediato |
-| 0x04 | 04 | 000100 | Load |
-| 0x05 | 05 | 000101 | Store |
-| 0x06 | 06 | 000110 | Branch |
-| 0x07 | 07 | 000111 | Jump |
+| 0x00 | 00 | 000000 | Aritmética    |
+| 0x01 | 01 | 000001 | Lógica        |
+| 0x02 | 02 | 000010 | Shift/Rotate  |
+| 0x03 | 03 | 000011 | Inmediato     |
+| 0x04 | 04 | 000100 | Load          |
+| 0x05 | 05 | 000101 | Store         |
+| 0x06 | 06 | 000110 | Branch        |
+| 0x07 | 07 | 000111 | Jump          |
 | 0x08 | 08 | 001000 | Jump Register |
-| 0x10 | 10 | 010000 | Vault |
-| 0x11 | 11 | 010001 | Hash |
-| 0x12 | 12 | 010010 | Signature |
-| 0x3F | 3F | 111111 | System |
+| 0x10 | 10 | 010000 | Vault         |
+| 0x11 | 11 | 010001 | Hash          |
+| 0x12 | 12 | 010010 | Signature     |
+| 0x3F | 3F | 111111 | System        |
 
 ### Ejemplo de Codificación
 
@@ -439,10 +442,10 @@ ADD R3, R1, R2
 
 | # Registros | Spills (%) | Área Relativa | Bits Codificación |
 |-------------|------------|---------------|-------------------|
-| 8 | 35% | 10 | 3 |
-| 16 | 15% | 20 | 4 |
+| 8      | 35%    | 10     | 3     |
+| 16     | 15%    | 20     | 4     |
 | **32** | **5%** | **40** | **5** |
-| 64 | 3% | 80 | 6 |
+| 64     | 3%     | 80     | 6     |
 
 **Justificación:**
 - Reduce spills a memoria de 35% a 5%
@@ -656,4 +659,4 @@ verify_loop:
 ---
 
 **Última actualización:** Octubre 2025  
-**Versión ISA:** 1.0
+**Versión ISA:** 1.1

@@ -3,13 +3,11 @@ from CPURegisters import CPURegisters
 
 if __name__ == "__main__":
   cpu = CPURegisters()
-  print("CPU Registers initialized.")
-  print(f"Register R1: {cpu.registers['R1']}")
-  print(f"Program Counter (PC): {cpu.PC}")  
-  print(f"Flags Register: {cpu.FLAGS}")
-  print(f"Vault Key 0: {cpu.VAULT['KEY0']}")
-  print(f"Hash Init A: {cpu.INIT['A']}")
-  print(f"Hash State A: {cpu.HS_A}")
-  print(f"Hash State B: {cpu.HS_B}")
-  print(f"Hash State C: {cpu.HS_C}")
-  print(f"Hash State D: {cpu.HS_D}")
+  print(cpu.read_register('R1'))
+  cpu.write_register('R1', 42)
+  print(cpu.read_register('R1'))
+
+  try:
+    cpu.write_register('R0', 10)
+  except ValueError as e:
+    print(e)  # Should raise an error since R0 is read-only

@@ -1,35 +1,36 @@
 from bitarray import bitarray
 
-# Constants:
-# --- General Purpose Registers (GPR) ---
-GPR_REG_SIZE = 64                     # Size of general purpose registers in bits
-GPR_NUM_REGS = 32                     # Number of general purpose registers
-# --- Special Registers ---
-PC_REG_SIZE = 64                      # Size of Program Counter register in bits
-FLAGS_REG_SIZE = 8                    # Size of Flags register in bits
-# --- Secure Vault ---
-VAULT_NUM_KEYS = 4                    # Number of keys in the vault
-SECURE_VAULT_REG_SIZE = 64            # Size of secure vault registers in bits
-INIT_REG_SIZE = 64                    # Size of init registers in bits
-# --- Hash Function ---
-HASH_VALUES = ['A', 'B', 'C', 'D']    # Initial hash values for the hash function
-HASH_REG_SIZE = 64                    # Size of hash function registers in bits
 
 class CPURegisters:
+  # Constants:
+  # --- General Purpose Registers (GPR) ---
+  GPR_REG_SIZE = 64                     # Size of general purpose registers in bits
+  GPR_NUM_REGS = 32                     # Number of general purpose registers
+  # --- Special Registers ---
+  PC_REG_SIZE = 64                      # Size of Program Counter register in bits
+  FLAGS_REG_SIZE = 8                    # Size of Flags register in bits
+  # --- Secure Vault ---
+  VAULT_NUM_KEYS = 4                    # Number of keys in the vault
+  SECURE_VAULT_REG_SIZE = 64            # Size of secure vault registers in bits
+  INIT_REG_SIZE = 64                    # Size of init registers in bits
+  # --- Hash Function ---
+  HASH_VALUES = ['A', 'B', 'C', 'D']    # Initial hash values for the hash function
+  HASH_REG_SIZE = 64                    # Size of hash function registers in bits
+
   def __init__(self):
     # General purpose registers R0-R31
-    self._registers = {f'R{i}': bitarray('0' * GPR_REG_SIZE) for i in range(GPR_NUM_REGS)}            # GPR registers
+    self._registers = {f'R{i}': bitarray('0' * self.GPR_REG_SIZE) for i in range(self.GPR_NUM_REGS)}            # GPR registers
 
     # Special registers
-    self._PC = bitarray('0' * 64)                                                                     # Program Counter
-    self._FLAGS = bitarray('0' * 8)                                                                   # Flags register
+    self._PC = bitarray('0' * self.PC_REG_SIZE)                                                            # Program Counter
+    self._FLAGS = bitarray('0' * self.FLAGS_REG_SIZE)                                                      # Flags register
 
     # Secure Vault registers
-    self._VAULT = {f'KEY{i}': bitarray('0' * SECURE_VAULT_REG_SIZE) for i in range(VAULT_NUM_KEYS)}   # Vault register
-    self._INIT = {f'{value}': bitarray('0' * INIT_REG_SIZE) for value in HASH_VALUES}                 # Hash init values registers
+    self._VAULT = {f'KEY{i}': bitarray('0' * self.SECURE_VAULT_REG_SIZE) for i in range(self.VAULT_NUM_KEYS)}   # Vault register
+    self._INIT = {f'{value}': bitarray('0' * self.INIT_REG_SIZE) for value in self.HASH_VALUES}                 # Hash init values registers
 
     # Internal Hash State registers
-    self._HASH_STATE = {f'HS_{value}': bitarray('0' * HASH_REG_SIZE) for value in HASH_VALUES}        # Hash state registers
+    self._HASH_STATE = {f'HS_{value}': bitarray('0' * self.HASH_REG_SIZE) for value in self.HASH_VALUES}        # Hash state registers
 
   def read_register(self, reg_name: str) -> bitarray:                                                 
     """
@@ -66,10 +67,10 @@ class CPURegisters:
     if reg_name == 'R0':
       raise ValueError("Register R0 is read-only and always contains 0.")
     
-    if not (0 <= value < 2**GPR_REG_SIZE):
+    if not (0 <= value < 2**self.GPR_REG_SIZE):
       raise ValueError("Value must be a 64-bit unsigned integer.")
     
-    self._registers[reg_name] = bitarray(f'{value:0{GPR_REG_SIZE}b}')
+    self._registers[reg_name] = bitarray(f'{value:0{self.GPR_REG_SIZE}b}')
     
   def read_PC(self) -> bitarray:
     """Reads the value of the Program Counter (PC) register."""
@@ -85,10 +86,10 @@ class CPURegisters:
     Raises:
         ValueError: If the value is not a 64-bit unsigned integer.
     """
-    if not (0 <= value < 2**PC_REG_SIZE):
+    if not (0 <= value < 2**self.PC_REG_SIZE):
       raise ValueError("Value must be a 64-bit unsigned integer.")
     
-    self._PC = bitarray(f'{value:0{PC_REG_SIZE}b}')
+    self._PC = bitarray(f'{value:0{self.PC_REG_SIZE}b}')
 
   def read_FLAGS(self) -> bitarray:
     """
@@ -109,10 +110,10 @@ class CPURegisters:
     Raises:
         ValueError: If the value is not an 8-bit unsigned integer.
     """
-    if not (0 <= value < 2**FLAGS_REG_SIZE):
+    if not (0 <= value < 2**self.FLAGS_REG_SIZE):
       raise ValueError("Value must be an 8-bit unsigned integer.")
     
-    self._FLAGS = bitarray(f'{value:0{FLAGS_REG_SIZE}b}')
+    self._FLAGS = bitarray(f'{value:0{self.FLAGS_REG_SIZE}b}')
 
   def read_vault(self, key_name: str) -> bitarray:
     """
@@ -144,10 +145,10 @@ class CPURegisters:
     if key_name not in self._VAULT:
       raise ValueError(f"Invalid vault key name: {key_name}")
     
-    if not (0 <= value < 2**SECURE_VAULT_REG_SIZE):
+    if not (0 <= value < 2**self.SECURE_VAULT_REG_SIZE):
       raise ValueError("Value must be a 64-bit unsigned integer.")
     
-    self._VAULT[key_name] = bitarray(f'{value:0{SECURE_VAULT_REG_SIZE}b}')
+    self._VAULT[key_name] = bitarray(f'{value:0{self.SECURE_VAULT_REG_SIZE}b}')
 
   def read_init(self, init_name: str) -> bitarray:
     """
@@ -179,10 +180,10 @@ class CPURegisters:
     if init_name not in self._INIT:
       raise ValueError(f"Invalid init value name: {init_name}")
     
-    if not (0 <= value < 2**INIT_REG_SIZE):
+    if not (0 <= value < 2**self.INIT_REG_SIZE):
       raise ValueError("Value must be a 64-bit unsigned integer.")
     
-    self._INIT[init_name] = bitarray(f'{value:0{INIT_REG_SIZE}b}')  
+    self._INIT[init_name] = bitarray(f'{value:0{self.INIT_REG_SIZE}b}')  
 
   def read_hash_state(self, hs_name: str) -> bitarray:
     """
@@ -214,7 +215,7 @@ class CPURegisters:
     if hs_name not in self._HASH_STATE:
       raise ValueError(f"Invalid hash state register name: {hs_name}")
     
-    if not (0 <= value < 2**HASH_REG_SIZE):
+    if not (0 <= value < 2**self.HASH_REG_SIZE):
       raise ValueError("Value must be a 64-bit unsigned integer.")
     
-    self._HASH_STATE[hs_name] = bitarray(f'{value:0{HASH_REG_SIZE}b}')
+    self._HASH_STATE[hs_name] = bitarray(f'{value:0{self.HASH_REG_SIZE}b}')

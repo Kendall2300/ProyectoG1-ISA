@@ -1,7 +1,7 @@
 from bitarray import bitarray
 
 
-class CPURegisters:
+class RegisterFile:
   # Constants:
   # --- General Purpose Registers (GPR) ---
   GPR_REG_SIZE = 64                     # Size of general purpose registers in bits

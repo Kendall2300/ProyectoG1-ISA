@@ -4,6 +4,9 @@ from bitarray import bitarray
 # --- General Purpose Registers (GPR) ---
 GPR_REG_SIZE = 64                     # Size of general purpose registers in bits
 GPR_NUM_REGS = 32                     # Number of general purpose registers
+# --- Special Registers ---
+PC_REG_SIZE = 64                      # Size of Program Counter register in bits
+FLAGS_REG_SIZE = 8                    # Size of Flags register in bits
 # --- Secure Vault ---
 VAULT_NUM_KEYS = 4                    # Number of keys in the vault
 SECURE_VAULT_REG_SIZE = 64            # Size of secure vault registers in bits
@@ -70,3 +73,21 @@ class CPURegisters:
     
     self._registers[reg_name] = bitarray(f'{value:0{GPR_REG_SIZE}b}')
     
+  def read_PC(self) -> bitarray:
+    """Reads the value of the Program Counter (PC) register."""
+    return self._PC
+  
+  def write_PC(self, value: int) -> None:
+    """
+    Writes a value to the Program Counter (PC) register.
+
+    Args:
+        value (int): The value to write to the PC (must be a 64-bit unsigned integer).
+        
+    Raises:
+        ValueError: If the value is not a 64-bit unsigned integer.
+    """
+    if not (0 <= value < 2**PC_REG_SIZE):
+      raise ValueError("Value must be a 64-bit unsigned integer.")
+    
+    self._PC = bitarray(f'{value:0{PC_REG_SIZE}b}')

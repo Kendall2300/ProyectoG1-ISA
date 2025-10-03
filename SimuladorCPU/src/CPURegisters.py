@@ -90,6 +90,30 @@ class CPURegisters:
     
     self._PC = bitarray(f'{value:0{PC_REG_SIZE}b}')
 
+  def read_FLAGS(self) -> bitarray:
+    """
+    Reads the value of the Flags register.
+    
+    Returns:
+        bitarray: The value of the Flags register as a bitarray.
+    """
+    return self._FLAGS
+  
+  def write_FLAGS(self, value: int) -> None:
+    """
+    Writes a value to the Flags register.
+
+    Args:
+        value (int): The value to write to the Flags register (must be an 8-bit unsigned integer).
+        
+    Raises:
+        ValueError: If the value is not an 8-bit unsigned integer.
+    """
+    if not (0 <= value < 2**FLAGS_REG_SIZE):
+      raise ValueError("Value must be an 8-bit unsigned integer.")
+    
+    self._FLAGS = bitarray(f'{value:0{FLAGS_REG_SIZE}b}')
+
   def read_vault(self, key_name: str) -> bitarray:
     """
     Reads the value of a specified vault key.

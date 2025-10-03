@@ -81,6 +81,7 @@ SecureRISC sigue los principios RISC clásicos:
   - Bit 1: N (Negative)
   - Bit 2: C (Carry)
   - Bit 3: V (Overflow)
+  - Bit 4-7: (Reservados en caso de ocupar banderas que faciliten los procesos)
 
 ### Bóveda Segura (Aislada)
 

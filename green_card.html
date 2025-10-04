@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureRISC ISA - Quick Reference Card</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            color: #333;
+        }
+        
+        .page {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.1); opacity: 0.5; }
+        }
+        
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header .subtitle {
+            font-size: 1.3em;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header .version {
+            margin-top: 15px;
+            font-size: 0.9em;
+            opacity: 0.8;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2px;
+            background: #e0e0e0;
+        }
+        
+        .section {
+            background: white;
+            padding: 25px;
+        }
+        
+        .section.full {
+            grid-column: 1 / -1;
+        }
+        
+        h2 {
+            color: #1e3c72;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        h3 {
+            color: #764ba2;
+            margin: 20px 0 12px 0;
+            font-size: 1.2em;
+        }
+        
+        .icon {
+            font-size: 1.2em;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 0.85em;
+            font-family: 'Roboto Mono', monospace;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75em;
+            letter-spacing: 0.5px;
+        }
+        
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .mnemonic {
+            color: #e91e63;
+            font-weight: 700;
+            font-family: 'Roboto Mono', monospace;
+        }
+        
+        .opcode {
+            color: #2196f3;
+            font-weight: 500;
+            font-family: 'Roboto Mono', monospace;
+        }
+        
+        .syntax {
+            color: #4caf50;
+            font-family: 'Roboto Mono', monospace;
+        }
+        
+        .format-box {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Roboto Mono', monospace;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .format-box .title {
+            font-weight: 700;
+            color: #1e3c72;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        
+        .format-box pre {
+            margin: 8px 0;
+            font-size: 0.85em;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .format-box .bits {
+            color: #e91e63;
+            font-weight: 600;
+        }
+        
+        .registers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin: 15px 0;
+        }
+        
+        .reg-item {
+            background: linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%);
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.85em;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .reg-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .reg-item strong {
+            display: block;
+            color: #1e3c72;
+            font-size: 1.1em;
+            margin-bottom: 4px;
+        }
+        
+        .reg-item.zero { background: linear-gradient(135deg, #ffebee 0%, #ef9a9a 100%); }
+        .reg-item.special { background: linear-gradient(135deg, #fff9c4 0%, #fff59d 100%); }
+        .reg-item.stack { background: linear-gradient(135deg, #e1f5fe 0%, #81d4fa 100%); }
+        
+        .note-box {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-size: 0.9em;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .note-box strong {
+            color: #e65100;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        
+        .security-box {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-size: 0.9em;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .security-box strong {
+            color: #2e7d32;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        
+        .code-example {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.85em;
+            margin: 15px 0;
+            overflow-x: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        
+        .code-example .comment {
+            color: #78909c;
+        }
+        
+        .code-example .keyword {
+            color: #ff5370;
+            font-weight: 600;
+        }
+        
+        .code-example .number {
+            color: #f78c6c;
+        }
+        
+        .code-example .register {
+            color: #82aaff;
+        }
+        
+        .opcode-legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .opcode-item {
+            background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);
+            padding: 10px;
+            border-radius: 6px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.85em;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .opcode-item .hex {
+            color: #c2185b;
+            font-weight: 700;
+            font-size: 1.2em;
+        }
+        
+        .opcode-item .desc {
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .footer {
+            background: #f5f5f5;
+            padding: 20px;
+            text-align: center;
+            font-size: 0.9em;
+            color: #666;
+            border-top: 3px solid #667eea;
+        }
+        
+        .footer strong {
+            color: #1e3c72;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .page {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="header">
+            <h1>🔒 SecureRISC ISA</h1>
+            <div class="subtitle">Arquitectura RISC de 64 bits con Extensiones de Seguridad</div>
+            <div class="version">Instruction Set Architecture Reference Card v1.0 | Octubre 2025</div>
+        </div>
+
+        <div class="content-grid">
+            <!-- REGISTROS -->
+            <div class="section">
+                <h2><span class="icon">📋</span> Registros</h2>
+                
+                <h3>Registros de Propósito General (64 bits)</h3>
+                <div class="registers-grid">
+                    <div class="reg-item zero"><strong>R0</strong>Zero (0)</div>
+                    <div class="reg-item"><strong>R1</strong>Return</div>
+                    <div class="reg-item"><strong>R2-R7</strong>Args</div>
+                    <div class="reg-item"><strong>R8-R15</strong>Temp</div>
+                    <div class="reg-item"><strong>R16-R23</strong>Saved</div>
+                    <div class="reg-item"><strong>R24-R28</strong>Temp</div>
+                    <div class="reg-item stack"><strong>R29</strong>FP</div>
+                    <div class="reg-item stack"><strong>R30</strong>SP</div>
+                    <div class="reg-item stack"><strong>R31</strong>LR</div>
+                </div>
+                
+                <h3>Registros Especiales</h3>
+                <div class="registers-grid">
+                    <div class="reg-item special"><strong>PC</strong>Program Counter</div>
+                    <div class="reg-item special"><strong>FLAGS</strong>Z,N,C,V</div>
+                </div>
+
+                <div class="security-box">
+                    <strong>🔐 Bóveda Segura (NO accesible directamente)</strong>
+                    <strong>VAULT[0-3]:</strong> 4 llaves privadas (64 bits c/u)<br>
+                    <strong>INIT[0-3]:</strong> 4 valores iniciales hash A,B,C,D<br>
+                    <strong>HS_A, HS_B, HS_C, HS_D:</strong> Estado interno de hash
+                </div>
+            </div>
+
+            <!-- FORMATOS DE INSTRUCCIÓN -->
+            <div class="section">
+                <h2><span class="icon">📐</span> Formatos de Instrucción (32 bits)</h2>
+                
+                <div class="format-box">
+                    <div class="title">Formato R (Register-Register)</div>
+                    <pre><span class="bits">|31-26|25-21|20-16|15-11|10-6|5-0|</span>
+| op  | rs1 | rs2 | rd  |shmt|fn |
+<span class="bits">6 bits 5 bits 5 bits 5 bits 5 bits 6 bits</span></pre>
+                    <div class="desc">Uso: Operaciones ALU entre registros</div>
+                </div>
+
+                <div class="format-box">
+                    <div class="title">Formato I (Immediate)</div>
+                    <pre><span class="bits">|31-26|25-21|20-16|15-0      |</span>
+| op  | rs1 | rd  | imm      |
+<span class="bits">6 bits 5 bits 5 bits  16 bits</span></pre>
+                    <div class="desc">Uso: Operaciones con inmediato, loads</div>
+                </div>
+
+                <div class="format-box">
+                    <div class="title">Formato S (Store)</div>
+                    <pre><span class="bits">|31-26|25-21|20-16|15-0      |</span>
+| op  | rs1 | rs2 | offset   |
+<span class="bits">6 bits 5 bits 5 bits  16 bits</span></pre>
+                    <div class="desc">Uso: Almacenamiento en memoria</div>
+                </div>
+
+                <div class="format-box">
+                    <div class="title">Formato B (Branch)</div>
+                    <pre><span class="bits">|31-26|25-21|20-16|15-0      |</span>
+| op  | rs1 | rs2 | offset   |
+<span class="bits">6 bits 5 bits 5 bits 16 bits signed</span></pre>
+                    <div class="desc">Uso: Saltos condicionales (bits 15-14: tipo)</div>
+                </div>
+
+                <div class="format-box">
+                    <div class="title">Formato J (Jump)</div>
+                    <pre><span class="bits">|31-26|25-0              |</span>
+| op  | address          |
+<span class="bits">6 bits      26 bits</span></pre>
+                    <div class="desc">Uso: Saltos incondicionales</div>
+                </div>
+
+                <div class="format-box">
+                    <div class="title">Formato V (Vault/Hash/Sign)</div>
+                    <pre><span class="bits">|31-26|25-21|20-16|15-11|10-0     |</span>
+| op  | vidx| rd  |funct|reserved |
+<span class="bits">6 bits 5 bits 5 bits 5 bits  11 bits</span></pre>
+                    <div class="desc">Uso: Operaciones de seguridad</div>
+                </div>
+            </div>
+
+            <!-- INSTRUCCIONES ARITMÉTICAS Y LÓGICAS -->
+            <div class="section full">
+                <h2><span class="icon">🔢</span> Instrucciones Aritméticas y Lógicas</h2>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mnemónico</th>
+                            <th>Op</th>
+                            <th>Fn</th>
+                            <th>Sintaxis</th>
+                            <th>Operación</th>
+                            <th>Formato</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="mnemonic">ADD</td>
+                            <td class="opcode">0x00</td>
+                            <td class="opcode">0x00</td>
+                            <td class="syntax">ADD rd, rs1, rs2</td>
+                            <td>rd = rs1 + rs2</td>
+                            <td>R</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">SUB</td>
+                            <td class="opcode">0x00</td>
+                            <td class="opcode">0x01</td>
+                            <td class="syntax">SUB rd, rs1, rs2</td>
+                            <td>rd = rs1 - rs2</td>
+                            <td>R</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">MUL</td>
+                            <td class="opcode">0x00</td>
+                            <td class="opcode">0x02</td>
+                            <td class="syntax">MUL rd, rs1, rs2</td>
+                            <td>rd = rs1 × rs2</td>
+                            <td>R</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">DIV</td>
+                            <td class="opcode">0x00</td>
+                            <td class="opcode">0x03</td>
+                            <td class="syntax">DIV rd, rs1, rs2</td>
+                            <td>rd = rs1 / rs2</td>
+                            <td>R</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">MOD</td>
+                            <td class="opcode">0x00</td>
+                            <td class="opcode">0x04</td>
+                            <td class="syntax">MOD rd, rs1, rs2</td>
+                            <td>rd = rs1 % rs2</td>
+                            <td>R</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">AND</td>
+                            <td class="opcode">0x01</td>
+                            <td class="opcode">0x00</td>
+                            <td class="syntax">AND rd, rs1, rs2</td>
+                            <td>rd = rs1 & rs2</td>
+                            <td>R</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">OR</td>
+                            <td class="opcode">0x01</td>
+                            <td class="opcode">0x01</td>
+                            <td class="syntax">OR rd, rs1, rs2</td>
+                            <td>rd = rs1 | rs2</td>
+                            <td>R</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">XOR</td>
+                            <td class="opcode">0x01</td>
+                            <td class="opcode">0x02</td>
+                            <td class="syntax">XOR rd, rs1, rs2</td>
+                            <td>rd = rs1 ^ rs2</td>
+                            <td>R</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">NOT</td>
+                            <td class="opcode">0x01</td>
+                            <td class="opcode">0x03</td>
+                            <td class="syntax">NOT rd, rs1</td>
+                            <td>rd = ~rs1</td>
+                            <td>R</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">SLL</td>
+                            <td class="opcode">0x02</td>
+                            <td class="opcode">0x00</td>
+                            <td class="syntax">SLL rd, rs1, rs2</td>
+                            <td>rd = rs1 << rs2</td>
+                            <td>R</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">SRL</td>
+                            <td class="opcode">0x02</td>
+                            <td class="opcode">0x01</td>
+                            <td class="syntax">SRL rd, rs1, rs2</td>
+                            <td>rd = rs1 >> rs2</td>
+                            <td>R</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">ROL</td>
+                            <td class="opcode">0x02</td>
+                            <td class="opcode">0x02</td>
+                            <td class="syntax">ROL rd, rs1, rs2</td>
+                            <td>rd = rotate_left(rs1, rs2)</td>
+                            <td>R</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">ADDI</td>
+                            <td class="opcode">0x03</td>
+                            <td class="opcode">-</td>
+                            <td class="syntax">ADDI rd, rs1, imm</td>
+                            <td>rd = rs1 + imm</td>
+                            <td>I</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">SUBI</td>
+                            <td class="opcode">0x03</td>
+                            <td class="opcode">-</td>
+                            <td class="syntax">SUBI rd, rs1, imm</td>
+                            <td>rd = rs1 - imm</td>
+                            <td>I</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">LUI</td>
+                            <td class="opcode">0x03</td>
+                            <td class="opcode">-</td>
+                            <td class="syntax">LUI rd, imm</td>
+                            <td>rd = imm << 48</td>
+                            <td>I</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- INSTRUCCIONES DE MEMORIA Y CONTROL -->
+            <div class="section">
+                <h2><span class="icon">💾</span> Memoria y Control</h2>
+                
+                <h3>Memoria</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mnemónico</th>
+                            <th>Op</th>
+                            <th>Sintaxis</th>
+                            <th>Operación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="mnemonic">LD</td>
+                            <td class="opcode">0x04</td>
+                            <td class="syntax">LD rd, off(rs1)</td>
+                            <td>rd = MEM[rs1+off]</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">SD</td>
+                            <td class="opcode">0x05</td>
+                            <td class="syntax">SD rs2, off(rs1)</td>
+                            <td>MEM[rs1+off] = rs2</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Branches (Opcode 0x06)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mnemónico</th>
+                            <th>Sintaxis</th>
+                            <th>Condición</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="mnemonic">BEQ</td>
+                            <td class="syntax">BEQ rs1, rs2, off</td>
+                            <td>if (rs1 == rs2)</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">BNE</td>
+                            <td class="syntax">BNE rs1, rs2, off</td>
+                            <td>if (rs1 != rs2)</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">BLT</td>
+                            <td class="syntax">BLT rs1, rs2, off</td>
+                            <td>if (rs1 < rs2)</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">BGE</td>
+                            <td class="syntax">BGE rs1, rs2, off</td>
+                            <td>if (rs1 >= rs2)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Jumps</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mnemónico</th>
+                            <th>Op</th>
+                            <th>Sintaxis</th>
+                            <th>Operación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="mnemonic">J</td>
+                            <td class="opcode">0x07</td>
+                            <td class="syntax">J addr</td>
+                            <td>PC = addr</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">JAL</td>
+                            <td class="opcode">0x07</td>
+                            <td class="syntax">JAL rd, addr</td>
+                            <td>rd=PC+4; PC=addr</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">JR</td>
+                            <td class="opcode">0x08</td>
+                            <td class="syntax">JR rs1</td>
+                            <td>PC = rs1</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- INSTRUCCIONES DE SEGURIDAD -->
+            <div class="section">
+                <h2><span class="icon">🔐</span> Instrucciones de Seguridad</h2>
+                
+                <h3>Bóveda (Opcode 0x10)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mnemónico</th>
+                            <th>Fn</th>
+                            <th>Sintaxis</th>
+                            <th>Operación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="mnemonic">VSTORE</td>
+                            <td class="opcode">0x00</td>
+                            <td class="syntax">VSTORE vidx, rs1</td>
+                            <td>VAULT[vidx] = rs1</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">VINIT</td>
+                            <td class="opcode">0x01</td>
+                            <td class="syntax">VINIT vidx</td>
+                            <td>HS←INIT[0-3]</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="note-box">
+                    <strong>⚠️ Nota de Seguridad</strong>
+                    vidx 0-3: Llaves privadas VAULT[0-3]<br>
+                    vidx 4-7: Valores iniciales INIT[0-3]<br>
+                    Los datos en la bóveda NO pueden leerse a registros GPR
+                </div>
+
+                <h3>Hash ToyMDMA (Opcode 0x11)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mnemónico</th>
+                            <th>Fn</th>
+                            <th>Sintaxis</th>
+                            <th>Operación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="mnemonic">HBLOCK</td>
+                            <td class="opcode">0x00</td>
+                            <td class="syntax">HBLOCK rs1</td>
+                            <td>Hash 1 bloque (1 ciclo)</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">HMULK</td>
+                            <td class="opcode">0x02</td>
+                            <td class="syntax">HMULK rd, rs1</td>
+                            <td>rd = rs1 × 0x9e37...c15</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">HMODP</td>
+                            <td class="opcode">0x03</td>
+                            <td class="syntax">HMODP rd, rs1</td>
+                            <td>rd = rs1 % 0xFFFFFFFB</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">HFINAL</td>
+                            <td class="opcode">0x04</td>
+                            <td class="syntax">HFINAL rd</td>
+                            <td>rd←HS_A, rd+1←HS_B...</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Firma Digital (Opcode 0x12)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mnemónico</th>
+                            <th>Fn</th>
+                            <th>Sintaxis</th>
+                            <th>Operación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="mnemonic">VSIGN</td>
+                            <td class="opcode">0x00</td>
+                            <td class="syntax">VSIGN rd, vidx</td>
+                            <td>rd←HS XOR VAULT[vidx]</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">VVERIF</td>
+                            <td class="opcode">0x01</td>
+                            <td class="syntax">VVERIF rs, vidx</td>
+                            <td>HS←rs XOR VAULT[vidx]</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Sistema (Opcode 0x3F)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mnemónico</th>
+                            <th>Sintaxis</th>
+                            <th>Operación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="mnemonic">NOP</td>
+                            <td class="syntax">NOP</td>
+                            <td>No operation</td>
+                        </tr>
+                        <tr>
+                            <td class="mnemonic">HALT</td>
+                            <td class="syntax">HALT</td>
+                            <td>Detener ejecución</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLA DE OPCODES -->
+            <div class="section full">
+                <h2><span class="icon">🗂�?/span> Tabla de Opcodes</h2>
+                
+                <div class="opcode-legend">
+                    <div class="opcode-item">
+                        <div class="hex">0x00</div>
+                        <div class="desc">Aritmética (ADD, SUB, MUL, DIV, MOD)</div>
+                    </div>
+                    <div class="opcode-item">
+                        <div class="hex">0x01</div>
+                        <div class="desc">Lógica (AND, OR, XOR, NOT)</div>
+                    </div>
+                    <div class="opcode-item">
+                        <div class="hex">0x02</div>
+                        <div class="desc">Shift/Rotate (SLL, SRL, ROL)</div>
+                    </div>
+                    <div class="opcode-item">
+                        <div class="hex">0x03</div>
+                        <div class="desc">Inmediato (ADDI, SUBI, LUI, etc.)</div>
+                    </div>
+                    <div class="opcode-item">
+                        <div class="hex">0x04</div>
+                        <div class="desc">Load (LD)</div>
+                    </div>
+                    <div class="opcode-item">
+                        <div class="hex">0x05</div>
+                        <div class="desc">Store (SD)</div>
+                    </div>
+                    <div class="opcode-item">
+                        <div class="hex">0x06</div>
+                        <div class="desc">Branch (BEQ, BNE, BLT, BGE)</div>
+                    </div>
+                    <div class="opcode-item">
+                        <div class="hex">0x07</div>
+                        <div class="desc">Jump (J, JAL)</div>
+                    </div>
+                    <div class="opcode-item">
+                        <div class="hex">0x08</div>
+                        <div class="desc">Jump Register (JR)</div>
+                    </div>
+                    <div class="opcode-item">
+                        <div class="hex">0x10</div>
+                        <div class="desc">Vault (VSTORE, VINIT)</div>
+                    </div>
+                    <div class="opcode-item">
+                        <div class="hex">0x11</div>
+                        <div class="desc">Hash (HBLOCK, HMULK, HMODP, HFINAL)</div>
+                    </div>
+                    <div class="opcode-item">
+                        <div class="hex">0x12</div>
+                        <div class="desc">Signature (VSIGN, VVERIF)</div>
+                    </div>
+                    <div class="opcode-item">
+                        <div class="hex">0x3F</div>
+                        <div class="desc">System (NOP, HALT)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EJEMPLO DE CÓDIGO -->
+            <div class="section full">
+                <h2><span class="icon">💻</span> Ejemplo: Firma Digital Completa</h2>
+                
+                <div class="code-example">
+<span class="comment"># ========================================</span>
+<span class="comment"># Programa de Firma Digital con SecureRISC</span>
+<span class="comment"># ========================================</span>
+
+<span class="comment"># 1. Cargar llave privada en bóveda</span>
+<span class="keyword">LUI</span>    <span class="register">R1</span>, <span class="number">0x1234</span>           <span class="comment"># Cargar parte alta de llave</span>
+<span class="keyword">VSTORE</span> <span class="number">0</span>, <span class="register">R1</span>              <span class="comment"># Guardar en VAULT[0]</span>
+
+<span class="comment"># 2. Cargar valores iniciales de hash (A,B,C,D)</span>
+<span class="keyword">LUI</span>    <span class="register">R2</span>, <span class="number">0x6745</span>           <span class="comment"># Valor inicial A</span>
+<span class="keyword">VSTORE</span> <span class="number">4</span>, <span class="register">R2</span>              <span class="comment"># INIT[0] = A</span>
+<span class="keyword">LUI</span>    <span class="register">R3</span>, <span class="number">0x23C1</span>           <span class="comment"># Valor inicial B</span>
+<span class="keyword">VSTORE</span> <span class="number">5</span>, <span class="register">R3</span>              <span class="comment"># INIT[1] = B</span>
+<span class="keyword">LUI</span>    <span class="register">R4</span>, <span class="number">0xEFCD</span>           <span class="comment"># Valor inicial C</span>
+<span class="keyword">VSTORE</span> <span class="number">6</span>, <span class="register">R4</span>              <span class="comment"># INIT[2] = C</span>
+<span class="keyword">LUI</span>    <span class="register">R5</span>, <span class="number">0xAB89</span>           <span class="comment"># Valor inicial D</span>
+<span class="keyword">VSTORE</span> <span class="number">7</span>, <span class="register">R5</span>              <span class="comment"># INIT[3] = D</span>
+
+<span class="comment"># 3. Inicializar estado de hash</span>
+<span class="keyword">VINIT</span>  <span class="number">0</span>                   <span class="comment"># Cargar INIT[0-3] �?HS_A,B,C,D</span>
+
+<span class="comment"># 4. Procesar archivo</span>
+<span class="keyword">LUI</span>    <span class="register">R10</span>, <span class="number">0x2000</span>          <span class="comment"># R10 = dirección base del archivo</span>
+<span class="keyword">ADDI</span>   <span class="register">R11</span>, <span class="register">R0</span>, <span class="number">16</span>        <span class="comment"># R11 = número de bloques</span>
+
+hash_loop:
+    <span class="keyword">LD</span>     <span class="register">R1</span>, <span class="number">0</span>(<span class="register">R10</span>)        <span class="comment"># Cargar bloque de 64 bits</span>
+    <span class="keyword">HBLOCK</span> <span class="register">R1</span>               <span class="comment"># Procesar con ToyMDMA (1 ciclo!)</span>
+    <span class="keyword">ADDI</span>   <span class="register">R10</span>, <span class="register">R10</span>, <span class="number">8</span>     <span class="comment"># Avanzar al siguiente bloque</span>
+    <span class="keyword">SUBI</span>   <span class="register">R11</span>, <span class="register">R11</span>, <span class="number">1</span>     <span class="comment"># Decrementar contador</span>
+    <span class="keyword">BNE</span>    <span class="register">R11</span>, <span class="register">R0</span>, hash_loop <span class="comment"># Continuar si quedan bloques</span>
+
+<span class="comment"># 5. Generar firma digital</span>
+<span class="keyword">VSIGN</span>  <span class="register">R4</span>, <span class="number">0</span>               <span class="comment"># Firma en R4-R7 usando VAULT[0]</span>
+
+<span class="comment"># 6. Guardar firma al final del archivo</span>
+<span class="keyword">SD</span>     <span class="register">R4</span>, <span class="number">0</span>(<span class="register">R10</span>)         <span class="comment"># Guardar 64 bits de firma</span>
+<span class="keyword">SD</span>     <span class="register">R5</span>, <span class="number">8</span>(<span class="register">R10</span>)         <span class="comment"># Guardar 64 bits de firma</span>
+<span class="keyword">SD</span>     <span class="register">R6</span>, <span class="number">16</span>(<span class="register">R10</span>)        <span class="comment"># Guardar 64 bits de firma</span>
+<span class="keyword">SD</span>     <span class="register">R7</span>, <span class="number">24</span>(<span class="register">R10</span>)        <span class="comment"># Guardar 64 bits de firma</span>
+
+<span class="comment"># 7. Finalizar</span>
+<span class="keyword">HALT</span>                        <span class="comment"># Detener ejecución</span>
+                </div>
+
+                <div class="security-box">
+                    <strong>�?Características de Seguridad del Ejemplo</strong>
+                    �?La llave privada nunca sale de la bóveda<br>
+                    �?HBLOCK procesa cada bloque en 1 ciclo (50x speedup)<br>
+                    �?VSIGN combina hash con llave de forma segura<br>
+                    �?La firma es de 256 bits (4 registros × 64 bits)
+                </div>
+            </div>
+
+            <!-- MODOS DE DIRECCIONAMIENTO -->
+            <div class="section">
+                <h2><span class="icon">📍</span> Modos de Direccionamiento</h2>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Modo</th>
+                            <th>Ejemplo</th>
+                            <th>Descripción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Registro</strong></td>
+                            <td class="syntax">ADD R3, R1, R2</td>
+                            <td>Operandos en registros</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Inmediato</strong></td>
+                            <td class="syntax">ADDI R1, R2, 100</td>
+                            <td>Constante en instrucción</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Base+Offset</strong></td>
+                            <td class="syntax">LD R1, 8(R2)</td>
+                            <td>Dirección = R2 + 8</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Absoluto</strong></td>
+                            <td class="syntax">J 0x1000</td>
+                            <td>Dirección directa</td>
+                        </tr>
+                        <tr>
+                            <td><strong>PC-Relativo</strong></td>
+                            <td class="syntax">BEQ R1, R2, 16</td>
+                            <td>Dirección = PC + offset</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- CARACTERÍSTICAS CLAVE -->
+            <div class="section">
+                <h2><span class="icon">�?/span> Características Clave</h2>
+                
+                <div class="note-box">
+                    <strong>📊 Especificaciones Principales</strong>
+                    <strong>Ancho de palabra:</strong> 64 bits<br>
+                    <strong>Tamaño de instrucción:</strong> 32 bits (fijo)<br>
+                    <strong>Registros GPR:</strong> 32 × 64 bits<br>
+                    <strong>Pipeline:</strong> 5 etapas (IF-ID-EX-MEM-WB)<br>
+                    <strong>Endianness:</strong> Little-endian<br>
+                    <strong>Bóveda:</strong> 8 slots × 64 bits (512 bits total)
+                </div>
+
+                <div class="security-box">
+                    <strong>🔒 Extensiones de Seguridad</strong>
+                    <strong>HBLOCK:</strong> Hash en 1 ciclo (50x vs SW)<br>
+                    <strong>VSIGN:</strong> Firma digital nativa<br>
+                    <strong>VVERIF:</strong> Verificación de firma<br>
+                    <strong>Bóveda:</strong> Almacenamiento seguro de llaves<br>
+                    <strong>Root of Trust:</strong> Llaves inaccesibles desde SW
+                </div>
+
+                <h3>Rendimiento Estimado</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Métrica</th>
+                            <th>Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>CPI promedio</td>
+                            <td>1.2 ciclos/instrucción</td>
+                        </tr>
+                        <tr>
+                            <td>Frecuencia objetivo</td>
+                            <td>800 MHz</td>
+                        </tr>
+                        <tr>
+                            <td>MIPS</td>
+                            <td>~666 MIPS</td>
+                        </tr>
+                        <tr>
+                            <td>Hash throughput</td>
+                            <td>800 MB/s @ 800MHz</td>
+                        </tr>
+                        <tr>
+                            <td>Speedup hash</td>
+                            <td>50x vs software puro</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- CONVENCIONES DE LLAMADA -->
+            <div class="section full">
+                <h2><span class="icon">📞</span> Convención de Llamada a Funciones</h2>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Registro</th>
+                            <th>Uso</th>
+                            <th>Preservado por</th>
+                            <th>Descripción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="register">R0</td>
+                            <td>Zero</td>
+                            <td>Hardware</td>
+                            <td>Siempre contiene 0</td>
+                        </tr>
+                        <tr>
+                            <td class="register">R1</td>
+                            <td>Retorno</td>
+                            <td>Caller</td>
+                            <td>Valor de retorno de función</td>
+                        </tr>
+                        <tr>
+                            <td class="register">R2-R7</td>
+                            <td>Argumentos</td>
+                            <td>Caller</td>
+                            <td>Primeros 6 argumentos de función</td>
+                        </tr>
+                        <tr>
+                            <td class="register">R8-R15</td>
+                            <td>Temporales</td>
+                            <td>Caller</td>
+                            <td>Registros de trabajo temporales</td>
+                        </tr>
+                        <tr>
+                            <td class="register">R16-R23</td>
+                            <td>Salvados</td>
+                            <td>Callee</td>
+                            <td>Deben preservarse en llamadas</td>
+                        </tr>
+                        <tr>
+                            <td class="register">R24-R28</td>
+                            <td>Temporales</td>
+                            <td>Caller</td>
+                            <td>Temporales adicionales</td>
+                        </tr>
+                        <tr>
+                            <td class="register">R29 (FP)</td>
+                            <td>Frame Pointer</td>
+                            <td>Callee</td>
+                            <td>Puntero al marco de pila</td>
+                        </tr>
+                        <tr>
+                            <td class="register">R30 (SP)</td>
+                            <td>Stack Pointer</td>
+                            <td>Callee</td>
+                            <td>Puntero a la pila</td>
+                        </tr>
+                        <tr>
+                            <td class="register">R31 (LR)</td>
+                            <td>Link Register</td>
+                            <td>Caller</td>
+                            <td>Dirección de retorno</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="note-box">
+                    <strong>📝 Nota sobre Convenciones</strong>
+                    <strong>Caller-saved:</strong> El llamador debe guardar estos registros si los necesita después de la llamada<br>
+                    <strong>Callee-saved:</strong> La función llamada debe preservar estos registros<br>
+                    <strong>Argumentos extra:</strong> Si hay más de 6 argumentos, se pasan por la pila
+                </div>
+            </div>
+
+            <!-- ENCODINGS RÁPIDOS -->
+            <div class="section full">
+                <h2><span class="icon">🔧</span> Encodings Python - Referencia Rápida</h2>
+                
+                <div class="code-example">
+<span class="comment"># Formato R: Operaciones registro-registro</span>
+<span class="keyword">def</span> encode_r(opcode, rs1, rs2, rd, shamt, funct):
+    <span class="keyword">return</span> (opcode << <span class="number">26</span>) | (rs1 << <span class="number">21</span>) | (rs2 << <span class="number">16</span>) | (rd << <span class="number">11</span>) | (shamt << <span class="number">6</span>) | funct
+
+<span class="comment"># Formato I: Operaciones con inmediato</span>
+<span class="keyword">def</span> encode_i(opcode, rs1, rd, immediate):
+    imm = immediate & <span class="number">0xFFFF</span>
+    <span class="keyword">return</span> (opcode << <span class="number">26</span>) | (rs1 << <span class="number">21</span>) | (rd << <span class="number">16</span>) | imm
+
+<span class="comment"># Formato S: Store</span>
+<span class="keyword">def</span> encode_s(opcode, rs1, rs2, offset):
+    off = offset & <span class="number">0xFFFF</span>
+    <span class="keyword">return</span> (opcode << <span class="number">26</span>) | (rs1 << <span class="number">21</span>) | (rs2 << <span class="number">16</span>) | off
+
+<span class="comment"># Formato B: Branch</span>
+<span class="keyword">def</span> encode_b(opcode, rs1, rs2, offset, branch_type):
+    off_14 = offset & <span class="number">0x3FFF</span>
+    offset_field = (branch_type << <span class="number">14</span>) | off_14
+    <span class="keyword">return</span> (opcode << <span class="number">26</span>) | (rs1 << <span class="number">21</span>) | (rs2 << <span class="number">16</span>) | offset_field
+
+<span class="comment"># Formato J: Jump</span>
+<span class="keyword">def</span> encode_j(opcode, address):
+    addr = address & <span class="number">0x3FFFFFF</span>
+    <span class="keyword">return</span> (opcode << <span class="number">26</span>) | addr
+
+<span class="comment"># Formato V: Vault/Hash/Sign</span>
+<span class="keyword">def</span> encode_v(opcode, vidx, rd, funct):
+    <span class="keyword">return</span> (opcode << <span class="number">26</span>) | (vidx << <span class="number">21</span>) | (rd << <span class="number">16</span>) | (funct << <span class="number">11</span>)
+
+<span class="comment"># Ejemplo: ADD R3, R1, R2</span>
+instruction = encode_r(<span class="number">0x00</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">0</span>, <span class="number">0x00</span>)
+<span class="comment"># Resultado: 0x00422000</span>
+                </div>
+            </div>
+
+            <!-- ALGORITMO TOYMDMA -->
+            <div class="section full">
+                <h2><span class="icon">🔐</span> Algoritmo ToyMDMA - Referencia</h2>
+                
+                <div class="code-example">
+<span class="comment"># Constantes ToyMDMA</span>
+GOLDEN_RATIO = <span class="number">0x9e3779b97f4a7c15</span>
+PRIME = <span class="number">0xFFFFFFFB</span>
+
+<span class="comment"># Función de rotación (implementada en HBLOCK)</span>
+<span class="keyword">def</span> rol64(x, r):
+    <span class="keyword">return</span> ((x << r) | (x >> (<span class="number">64</span> - r))) & <span class="number">0xFFFFFFFFFFFFFFFF</span>
+
+<span class="comment"># Procesamiento de un bloque (implementado en HBLOCK)</span>
+<span class="keyword">def</span> process_block(block, A, B, C, D):
+    <span class="comment"># Funciones no lineales</span>
+    f = (A & B) | (~A & C) & <span class="number">0xFFFFFFFFFFFFFFFF</span>
+    g = (B & C) | (~B & D) & <span class="number">0xFFFFFFFFFFFFFFFF</span>
+    h = (A ^ B ^ C ^ D) & <span class="number">0xFFFFFFFFFFFFFFFF</span>
+    
+    <span class="comment"># Multiplicación por constante áurea (HMULK)</span>
+    mul = (block * GOLDEN_RATIO) & <span class="number">0xFFFFFFFFFFFFFFFF</span>
+    
+    <span class="comment"># Actualizaciones del estado</span>
+    A = (rol64(A + f + mul, <span class="number">7</span>) + B) & <span class="number">0xFFFFFFFFFFFFFFFF</span>
+    B = (rol64(B + g + block, <span class="number">11</span>) + (C * <span class="number">3</span>)) & <span class="number">0xFFFFFFFFFFFFFFFF</span>
+    C = (rol64(C + h + mul, <span class="number">17</span>) + (D % PRIME)) & <span class="number">0xFFFFFFFFFFFFFFFF</span>
+    D = (rol64(D + A + block, <span class="number">19</span>) ^ (f * <span class="number">5</span>)) & <span class="number">0xFFFFFFFFFFFFFFFF</span>
+    
+    <span class="keyword">return</span> A, B, C, D
+
+<span class="comment"># La instrucción HBLOCK hace todo esto en 1 ciclo!</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <strong>SecureRISC ISA v1.0</strong>
+            📄 Para más información consultar: ISA.md | 🔗  <a href="https://github.com/Kendall2300/ProyectoG1-ISA" target="_blank" style="color: #667eea; text-decoration: none; font-weight: 500;"> Repositorio del proyecto
+        </div>
+    </div>
+</body>
+</html>

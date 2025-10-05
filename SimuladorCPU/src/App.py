@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from UI.RegisterView import RegisterView
 from UI.MemoryView import MemoryView
+from UI.TextEditor import TextEditor
 from CPU import CPU
 
 
@@ -30,11 +31,11 @@ class App(tk.Tk):
     notebook.pack(side="right", fill="both", expand=True)
 
     # Text Editor Tab
-    tab1 = ttk.Frame(notebook)
-    notebook.add(tab1, text="Text Editor")
+    textEditorTab = ttk.Frame(notebook)
+    notebook.add(textEditorTab, text="Text Editor")
 
-    label1 = ttk.Label(tab1, text="Text Editor Placeholder")
-    label1.pack(pady=20)
+    textEditor = TextEditor(textEditorTab)
+    textEditor.pack(fill="both", expand=True)
 
     # Memory View Tab
     memoryTab = ttk.Frame(notebook)

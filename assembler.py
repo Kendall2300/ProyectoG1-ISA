@@ -1,6 +1,7 @@
 # assembler.py
 # Versión 1.0 (binaria básica)
 
+import re
 from Instruction import parse_instructions
 
 # === Tabla de opcodes (según tu ISA) ===
@@ -69,7 +70,29 @@ def assemble(input_file, output_file):
     with open(input_file, 'r') as f:
         lines = f.readlines()
 
-    instrs = parse_instructions(lines)
+    # Preprocesamiento: arreglar líneas problemáticas antes de parsear
+    patched_lines = []
+    for line in lines:
+        clean = line.strip()
+
+        # Corrige formato de LUI faltante
+        if clean.upper().startswith("LUI") and clean.count(',') == 1:
+            parts = clean.split(',')
+            rd_part = parts[0].split()[1]
+            imm_part = parts[1]
+            clean = f"LUI {rd_part}, R0, {imm_part}"
+
+        # Convierte inmediatos hexadecimales (0x...) a decimales
+        hex_pattern = re.compile(r'0x[0-9A-Fa-f]+')
+        matches = hex_pattern.findall(clean)
+        for m in matches:
+            dec_val = str(int(m, 16))
+            clean = clean.replace(m, dec_val)
+
+        patched_lines.append(clean + "\n")
+
+    instrs = parse_instructions(patched_lines)
+
     bin_lines = []
 
     for instr in instrs:
@@ -107,4 +130,4 @@ def assemble(input_file, output_file):
 
 
 if __name__ == "__main__":
-    assemble("test.asm", "out/test.bin")
+    assemble("testsASM/test1.asm", "out/test1.bin")

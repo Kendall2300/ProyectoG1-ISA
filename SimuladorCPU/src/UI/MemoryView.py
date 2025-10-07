@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk
-from Memory import Memory
 
 
 # Constants
@@ -9,9 +8,9 @@ WORD_SIZE = 4                         # 4 bytes per word
 COL_PER_ROW = ROW_SIZE // WORD_SIZE   # 4 words per row
 
 class MemoryView(ttk.Frame):
-  def __init__(self, parent: ttk.Frame, memory: Memory):
+  def __init__(self, parent: ttk.Frame, main_app: tk.Tk):
     super().__init__(parent)
-    self.memory = memory
+    self.main_app = main_app
     self._create_widgets()
   
   def _create_widgets(self) -> None:
@@ -41,7 +40,7 @@ class MemoryView(ttk.Frame):
     self.treeView.configure(yscrollcommand=scrollbar.set)
 
     # Insert data
-    mem = self.memory.memory
+    mem = self.main_app.pipeline.memory.mem
     size = len(mem)
     for base in range(0, size, ROW_SIZE):
       address = f"0x{base:08X}"

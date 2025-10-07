@@ -3,11 +3,12 @@ from tkinter import ttk
 
 
 class TextEditor(ttk.Frame):
-  def __init__(self, parent: ttk.Frame):
+  def __init__(self, parent: ttk.Frame, on_run_callback: callable):
     super().__init__(parent)
+    self.on_run_callback = on_run_callback
     self._create_widgets()
     self._bind_events()
-  
+
   def _create_widgets(self) -> None:
     """
     Creates the main widgets for the text editor.
@@ -17,7 +18,7 @@ class TextEditor(ttk.Frame):
     toolbar.pack(side="top", fill="x")
 
     # Run Button
-    run_button = ttk.Button(toolbar, text="Run", command=self._on_run_button_click)
+    run_button = ttk.Button(toolbar, text="Run", command=self.on_run_callback)
     run_button.pack(side="left", pady=10, padx=10)
 
     # Main Container
@@ -87,8 +88,12 @@ class TextEditor(ttk.Frame):
       linenum = str(int(float(i)))                                
       self.linenum.create_text(35, y, anchor="ne", text=linenum)  
       i = self.text.index("%s+1line" % i)    
-
-  def _on_run_button_click(self) -> None: # TODO: Implement run functionality
-    code = self.text.get("1.0", "end-1c")
-    print("Running code:")
-    print(code)                     
+    
+  def get_code(self) -> str:
+    """
+    Retrieves the current code from the text widget.
+    
+    Returns:
+        str: The code as a string.
+    """
+    return self.text.get("1.0", "end-1c")

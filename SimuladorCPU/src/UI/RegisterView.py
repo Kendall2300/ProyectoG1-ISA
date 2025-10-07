@@ -1,13 +1,12 @@
 import tkinter as tk
 from tkinter import ttk
-from RegisterFile import RegisterFile
-import bitarray
 
 
 class RegisterView(ttk.Frame):
-  def __init__(self, parent: ttk.Frame, registerFile: RegisterFile):
+  def __init__(self, parent: ttk.Frame, main_app: tk.Tk):
     super().__init__(parent, borderwidth=2, relief="groove")
-    self.registerFile = registerFile
+    self.main_app = main_app
+    self.value_labels = {}
     self._create_widgets()
 
   def _create_widgets(self) -> None:
@@ -21,30 +20,33 @@ class RegisterView(ttk.Frame):
     # Scrollable frame
     self._create_scrollable_frame(self.vbox)
 
+    # Render registers
+    registers = self.main_app.pipeline.registers
+
     # GPR Registers
-    for i in range(self.registerFile.GPR_NUM_REGS):
-        value = self.registerFile.read_register(f'R{i}')
+    for i in range(len(registers.regs)):
+        value = registers.read(f'R{i}')
         self._create_register_box(self.inner_frame, f"R{i}", value)
 
-    # Special Registers
-    self._create_register_box(self.inner_frame, "PC", self.registerFile.read_PC())
-    self._create_register_box(self.inner_frame, "FLAGS", self.registerFile.read_FLAGS())
+    # # Special Registers
+    # self._create_register_box(self.inner_frame, "PC", registers.read_PC())
+    # self._create_register_box(self.inner_frame, "FLAGS", registers.read_FLAGS())
 
-    # Secure Vault Registers
-    for i in range(self.registerFile.VAULT_NUM_KEYS):
-        value = self.registerFile.read_vault(f'KEY{i}')
-        self._create_register_box(self.inner_frame, f"KEY{i}", value)
+    # # Secure Vault Registers
+    # for i in range(registers.VAULT_NUM_KEYS):
+    #     value = registers.read_vault(f'KEY{i}')
+    #     self._create_register_box(self.inner_frame, f"KEY{i}", value)
 
-    for reg in self.registerFile.HASH_VALUES:
-        value = self.registerFile.read_init(f'{reg}')
-        self._create_register_box(self.inner_frame, f"{reg}", value)
+    # for reg in registers.HASH_VALUES:
+    #     value = registers.read_init(f'{reg}')
+    #     self._create_register_box(self.inner_frame, f"{reg}", value)
 
-    # Hash State Registers
-    for reg in self.registerFile.HASH_VALUES:
-        value = self.registerFile.read_hash_state(f'HS_{reg}')
-        self._create_register_box(self.inner_frame, f"HS {reg}", value)
+    # # Hash State Registers
+    # for reg in registers.HASH_VALUES:
+    #     value = registers.read_hash_state(f'HS_{reg}')
+    #     self._create_register_box(self.inner_frame, f"HS {reg}", value)
 
-  def _create_register_box(self, parent: ttk.Frame, label_text: str, value: bitarray) -> None:
+  def _create_register_box(self, parent: ttk.Frame, label_text: str, value: int) -> None:
     """
     Creates a box for a single register with its label and value.
 
@@ -66,9 +68,11 @@ class RegisterView(ttk.Frame):
     sep.pack(side="left", fill="y", padx=5)
 
     # Register value
-    value_hex = hex(int(value.to01(), 2))[2:]
+    value_hex = hex(value)[2:]
     reg_value = ttk.Label(hbox, text=f"{value_hex}", width=10, anchor="w")
     reg_value.pack(side="left", padx=(5, 0))
+
+    self.value_labels[label_text] = reg_value
 
   def _create_scrollable_frame(self, parent: ttk.Frame) -> None:
     """
@@ -93,3 +97,53 @@ class RegisterView(ttk.Frame):
     self.inner_frame = ttk.Frame(self.canvas)
     self.inner_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"), width=e.width))
     self.canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
+
+  def refresh(self) -> None:
+    """
+    Refreshes the register values displayed in the UI.
+    """
+    registers = self.main_app.pipeline.registers
+
+    # GPR Registers
+    for i in range(len(registers.regs)):
+        value = registers.read(f'R{i}')
+        label = self.value_labels.get(f'R{i}')
+        if label:
+            value_hex = hex(value)[2:]
+            label.config(text=f"{value_hex}")
+
+      # # Special Registers
+      # pc_value = registers.read_PC()
+      # pc_label = self.value_labels.get("PC")
+      # if pc_label:
+      #     pc_hex = hex(int(pc_value.to01(), 2))[2:]
+      #     pc_label.config(text=f"{pc_hex}")
+
+      # flags_value = registers.read_FLAGS()
+      # flags_label = self.value_labels.get("FLAGS")
+      # if flags_label:
+      #     flags_hex = hex(int(flags_value.to01(), 2))[2:]
+      #     flags_label.config(text=f"{flags_hex}")
+
+      # # Secure Vault Registers
+      # for i in range(registers.VAULT_NUM_KEYS):
+      #     value = registers.read_vault(f'KEY{i}')
+      #     label = self.value_labels.get(f'KEY{i}')
+      #     if label:
+      #         value_hex = hex(int(value.to01(), 2))[2:]
+      #         label.config(text=f"{value_hex}")
+
+      # for reg in registers.HASH_VALUES:
+      #     value = registers.read_init(f'{reg}')
+      #     label = self.value_labels.get(f'{reg}')
+      #     if label:
+      #         value_hex = hex(int(value.to01(), 2))[2:]
+      #         label.config(text=f"{value_hex}")
+
+      # # Hash State Registers
+      # for reg in registers.HASH_VALUES:
+      #     value = registers.read_hash_state(f'HS_{reg}')
+      #     label = self.value_labels.get(f'HS {reg}')
+      #     if label:
+      #         value_hex = hex(int(value.to01(), 2))[2:]
+      #         label.config(text=f"{value_hex}")

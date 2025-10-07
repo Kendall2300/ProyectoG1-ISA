@@ -1,70 +1,44 @@
-from typing import Literal
-
-
-# Endianness type
-Endian = Literal['little', 'big']
-
 class Memory:
-  def __init__(self, size: int = 1024 * 1024, endian: Endian = 'little', require_alignment: bool = False):
+  def __init__(self, size: int = 1024):
     """
     Initialize memory with given size and endianness.
     
     Args:
-        size (int): Size of the memory in bytes. Default is 1 MB.
-        endian (str): Endianness of the memory ('little' or 'big'). Default is 'little'.
-        require_alignment (bool): If True, enforce alignment for multi-byte accesses. Default is False.
+        size (int): Size of the memory in bytes. Default is 1 KB.
     """
-    self.memory = bytearray(size)
     self.size = size
-    self.endian = endian
-    self.require_alignment = require_alignment
+    self.mem = [0] * size
 
-  def _check_range(self, addr: int, nbytes: int) -> None:
+  def _check_range(self, addr: int) -> None:
     """
     Check if the memory access is within the valid range.
     
     Args:
-        addr (int): Starting address of the access.
-        nbytes (int): Number of bytes to access.
+        addr (int): Address to check.
     """
-    if addr < 0 or addr + nbytes > self.size:
-      raise IndexError(f"Memory access out of range: 0x{addr:X}...0x{addr + nbytes-1:X} (size={self.size})")
+    if not 0 <= addr < self.size:
+      raise IndexError(f"Memory access out of range.")
     
-  def _check_alignment(self, addr: int, nbytes: int) -> None:
+  def load_word(self, addr: int) -> int:
     """
-    Check if the memory access is aligned if alignment is required.
-    
-    Args:
-        addr (int): Starting address of the access.
-        nbytes (int): Number of bytes to access.
-    """
-    if self.require_alignment and (addr % nbytes) != 0:
-      raise ValueError(f"Unaligned access: address=0x{addr:X}, width={nbytes}")
-    
-  def read_bytes(self, addr: int, nbytes: int) -> bytes:
-    """
-    Read bytes from memory.
-    
-    Args:
-        addr (int): Starting address to read from.
-        nbytes (int): Number of bytes to read.  
-    
-    Returns:
-        bytes: The bytes read from memory.
-    """
-    self._check_range(addr, nbytes)
-    self._check_alignment(addr, nbytes)
-    return bytes(self.memory[addr:addr + nbytes])
-  
-  def write_bytes(self, addr: int, data: bytes) -> None:
-    """
-    Write bytes to memory.
+    Read a word from memory.
 
     Args:
-        addr (int): Starting address to write to.
-        data (bytes): Data to write.
+        addr (int): Address to read from.
+
+    Returns:
+        int: The word read from memory.
     """
-    nbytes = len(data)
-    self._check_range(addr, nbytes)
-    self._check_alignment(addr, nbytes)
-    self.memory[addr:addr + nbytes] = data
+    self._check_range(addr)
+    return self.mem[addr]
+
+  def store_bytes(self, addr: int, value: int) -> None:
+    """
+    Write a byte to memory.
+
+    Args:
+        addr (int): Address where to write.
+        value (int): Value to write.
+    """
+    self._check_range(addr)
+    self.mem[addr] = value

@@ -1,144 +1,110 @@
 # assembler.py
 # Versión 1.0 (binaria básica)
 
-import re
+from Instruction import parse_instructions
 
-class Assembler:
-    def __init__(self):
-        # Tabla de opcodes principales (según ISA.md)
-        self.opcodes = {
-            "ADD": 0x00, "SUB": 0x00, "MUL": 0x00, "DIV": 0x00, "MOD": 0x00,
-            "AND": 0x01, "OR": 0x01, "XOR": 0x01, "NOT": 0x01,
-            "ADDI": 0x03, "SUBI": 0x03, "ANDI": 0x03, "ORI": 0x03, "XORI": 0x03, "SLLI": 0x03, "LUI": 0x03,
-            "LD": 0x04, "SD": 0x05,
-            "BEQ": 0x06, "BNE": 0x06, "BLT": 0x06, "BGE": 0x06,
-            "J": 0x07, "JAL": 0x07, "JR": 0x08,
-            "NOP": 0x3F, "HALT": 0x3F
-        }
+# === Tabla de opcodes (según tu ISA) ===
+OPCODES = {
+    "ADD": 0x00, "SUB": 0x00, "MUL": 0x00, "DIV": 0x00, "MOD": 0x00,
+    "AND": 0x01, "OR": 0x01, "XOR": 0x01, "NOT": 0x01,
+    "SLL": 0x02, "SRL": 0x02, "ROL": 0x02,
+    "ADDI": 0x03, "SUBI": 0x03, "ANDI": 0x03, "ORI": 0x03,
+    "XORI": 0x03, "SLLI": 0x03, "LUI": 0x03,
+    "LD": 0x04, "SD": 0x05,
+    "BEQ": 0x06, "BNE": 0x06, "BLT": 0x06, "BGE": 0x06,
+    "J": 0x07, "JAL": 0x07, "JR": 0x08,
+    "VSTORE": 0x10, "VINIT": 0x10,
+    "HBLOCK": 0x11, "HMULK": 0x11, "HMODP": 0x11, "HFINAL": 0x11,
+    "VSIGN": 0x12, "VVERIF": 0x12,
+    "NOP": 0x3F, "HALT": 0x3F
+}
 
-        # Tabla funct para distinguir operaciones del mismo opcode
-        self.funct = {
-            "ADD": 0x00, "SUB": 0x01, "MUL": 0x02, "DIV": 0x03, "MOD": 0x04,
-            "AND": 0x00, "OR": 0x01, "XOR": 0x02, "NOT": 0x03,
-        }
+# === Tabla de funct (simplificada) ===
+FUNCT_CODES = {
+    "ADD": 0x00, "SUB": 0x01, "MUL": 0x02, "DIV": 0x03, "MOD": 0x04,
+    "AND": 0x00, "OR": 0x01, "XOR": 0x02, "NOT": 0x03,
+    "SLL": 0x00, "SRL": 0x01, "ROL": 0x02
+}
 
-    # ---------------------------
-    # Utilidades de parsing
-    # ---------------------------
+# === Función para extraer número de registro ===
+def reg_num(reg):
+    return int(reg.replace('R', '').strip())
 
-    def reg_num(self, reg):
-        """Convierte 'R5' -> 5"""
-        return int(reg.strip().replace('R', ''))
+# === Codificadores de formato ===
+def encode_R(op, instr):
+    opcode = OPCODES[op]
+    rs1 = reg_num(instr.rs1)
+    rs2 = reg_num(instr.rs2) if instr.rs2 else 0
+    rd = reg_num(instr.rd)
+    shamt = 0
+    funct = FUNCT_CODES.get(op, 0)
+    return (opcode << 26) | (rs1 << 21) | (rs2 << 16) | (rd << 11) | (shamt << 6) | funct
 
-    def imm_val(self, imm):
-        """Convierte inmediato (decimal o hex) a int. Limpieza total."""
-        imm = imm.strip().replace(",", "")
-        # Quita cualquier carácter que no sea 0-9, A-F, x, X o -
-        imm = re.sub(r"[^0-9A-Fa-fxX-]", "", imm)
+def encode_I(op, instr):
+    opcode = OPCODES[op]
+    rs1 = reg_num(instr.rs1)
+    rd = reg_num(instr.rd)
+    imm = int(instr.immediate)
+    imm &= 0xFFFF
+    return (opcode << 26) | (rs1 << 21) | (rd << 16) | imm
 
-        if imm.upper().startswith("-0X"):
-            return -int(imm[3:], 16)
-        elif imm.upper().startswith("0X"):
-            return int(imm[2:], 16)
-        else:
-            return int(imm, 10)
+def encode_S(op, instr):
+    opcode = OPCODES[op]
+    rs1 = reg_num(instr.rs1)
+    rs2 = reg_num(instr.rs2)
+    offset = int(instr.imm) & 0xFFFF
+    return (opcode << 26) | (rs1 << 21) | (rs2 << 16) | offset
 
-    def assemble_line(self, line: str) -> int:
-        """
-        Ensambla una sola línea ASM -> instrucción de 32 bits.
-        Retorna un entero (representa el binario).
-        """
-        # Eliminar comentarios y espacios
-        line = line.split("#")[0].strip()
-        if not line:
-            return None
+def encode_J(op, instr):
+    opcode = OPCODES[op]
+    addr = int(instr.immediate) & 0x3FFFFFF
+    return (opcode << 26) | addr
 
-        # Dividir tokens y limpiar vacíos
-        tokens = [t.strip() for t in re.split(r"[,\s]+", line) if t.strip()]
-        mnemonic = tokens[0].upper()
+def encode_SYS(op):
+    opcode = OPCODES[op]
+    return (opcode << 26)
 
-        # Debug
-        # if mnemonic == "LUI":
-        #     print(f"[DEBUG] Tokens LUI -> {tokens}")
+# === Función principal de ensamblado ===
+def assemble(input_file, output_file):
+    with open(input_file, 'r') as f:
+        lines = f.readlines()
 
-        if mnemonic not in self.opcodes:
-            raise ValueError(f"Instrucción desconocida: {mnemonic}")
+    instrs = parse_instructions(lines)
+    bin_lines = []
 
-        opcode = self.opcodes[mnemonic]
+    for instr in instrs:
+        try:
+            op = instr.op
+            opcode = OPCODES.get(op)
 
-        # Formatos simples: R, I, S, o System
-        if mnemonic in ["ADD", "SUB", "MUL", "DIV", "MOD", "AND", "OR", "XOR", "NOT"]:
-            rd = self.reg_num(tokens[1])
-            rs1 = self.reg_num(tokens[2])
-            rs2 = self.reg_num(tokens[3]) if len(tokens) > 3 else 0
-            funct = self.funct[mnemonic]
-            binary = (opcode << 26) | (rs1 << 21) | (rs2 << 16) | (rd << 11) | (funct)
-            return binary
+            if op in {"ADD", "SUB", "MUL", "DIV", "MOD", "AND", "OR", "XOR", "NOT", "SLL", "SRL", "ROL"}:
+                code = encode_R(op, instr)
+            elif op in {"ADDI", "SUBI", "ANDI", "ORI", "XORI", "SLLI", "LUI"}:
+                code = encode_I(op, instr)
+            elif op in {"LD", "SD"}:
+                code = encode_S(op, instr)
+            elif op in {"J", "JAL", "JR"}:
+                code = encode_J(op, instr)
+            elif op in {"NOP", "HALT"}:
+                code = encode_SYS(op)
+            else:
+                print(f"[WARN] Instrucción no soportada aún: {op}")
+                continue
+
+            bin_str = f"{code:032b}"
+            bin_lines.append(bin_str)
+
+        except Exception as e:
+            print(f"[ERROR] Línea '{instr}': {e}")
+
+    # === Escribir archivo binario ===
+    with open(output_file, 'w') as f:
+        for line in bin_lines:
+            f.write(line + '\n')
+
+    print(f"[OK] Archivo binario generado: {output_file}")
+    print(f"Total de instrucciones ensambladas: {len(bin_lines)}")
 
 
-        elif mnemonic in ["ADDI", "SUBI", "ANDI", "ORI", "XORI", "SLLI"]:
-            rd = self.reg_num(tokens[1])
-            rs1 = self.reg_num(tokens[2])
-            imm = self.imm_val(tokens[3]) & 0xFFFF
-            binary = (opcode << 26) | (rs1 << 21) | (rd << 16) | imm
-            return binary
-
-        elif mnemonic == "LUI":
-            rd = self.reg_num(tokens[1])
-            imm = self.imm_val(tokens[2]) & 0xFFFF
-            binary = (self.opcodes["LUI"] << 26) | (rd << 16) | imm
-            return binary
-
-        elif mnemonic == "LD":
-            rd = self.reg_num(tokens[1])
-            # Formato tipo offset(base): 8(R1)
-            offset, base = re.match(r"(\d+)\((R\d+)\)", tokens[2]).groups()
-            rs1 = self.reg_num(base)
-            offset_val = int(offset) & 0xFFFF
-            binary = (opcode << 26) | (rs1 << 21) | (rd << 16) | offset_val
-            return binary
-
-        elif mnemonic == "SD":
-            rs2 = self.reg_num(tokens[1])
-            offset, base = re.match(r"(\d+)\((R\d+)\)", tokens[2]).groups()
-            rs1 = self.reg_num(base)
-            offset_val = int(offset) & 0xFFFF
-            binary = (opcode << 26) | (rs1 << 21) | (rs2 << 16) | offset_val
-            return binary
-
-        elif mnemonic in ["HALT", "NOP"]:
-            binary = (opcode << 26)
-            return binary
-
-        else:
-            raise NotImplementedError(f"Instrucción {mnemonic} no soportada aún.")
-
-    def assemble_file(self, filename: str) -> list[int]:
-        """Ensambla un archivo completo (.asm)"""
-        instructions = []
-        with open(filename) as f:
-            for line in f:
-                try:
-                    instr = self.assemble_line(line)
-                    if instr is not None:
-                        instructions.append(instr)
-                except Exception as e:
-                    print(f"Error en línea '{line.strip()}': {e}")
-        return instructions
-
-    def write_bin(self, instructions: list[int], outfile: str):
-        """Guarda las instrucciones como texto binario"""
-        with open(outfile, "w") as f:
-            for instr in instructions:
-                f.write(f"{instr:032b}\n")
-        print(f"[OK] Archivo binario generado: {outfile}")
-
-# ---------------------------
-# Ejemplo de uso directo
-# ---------------------------
 if __name__ == "__main__":
-    asm = Assembler()
-    program = asm.assemble_file("testsASM/test1.asm")
-    asm.write_bin(program, "out/test1.bin")
-    print(f"Total de instrucciones ensambladas: {len(program)}")
-
+    assemble("test.asm", "out/test.bin")

@@ -1,10 +1,10 @@
 # assembler.py
-# Versión 1.0 (binaria básica)
+# Versión 2.0 — Alineada 100% con el ISA SecureRISC y simulador
 
 import re
 from Instruction import parse_instructions
 
-# === Tabla de opcodes (según tu ISA) ===
+# === Tabla de opcodes (según ISA.md) ===
 OPCODES = {
     "ADD": 0x00, "SUB": 0x00, "MUL": 0x00, "DIV": 0x00, "MOD": 0x00,
     "AND": 0x01, "OR": 0x01, "XOR": 0x01, "NOT": 0x01,
@@ -20,114 +20,130 @@ OPCODES = {
     "NOP": 0x3F, "HALT": 0x3F
 }
 
-# === Tabla de funct (simplificada) ===
+# === Tabla de funct (solo formato R) ===
 FUNCT_CODES = {
     "ADD": 0x00, "SUB": 0x01, "MUL": 0x02, "DIV": 0x03, "MOD": 0x04,
     "AND": 0x00, "OR": 0x01, "XOR": 0x02, "NOT": 0x03,
     "SLL": 0x00, "SRL": 0x01, "ROL": 0x02
 }
 
-# === Función para extraer número de registro ===
+# === Conversión de registro ===
 def reg_num(reg):
-    return int(reg.replace('R', '').strip())
+    try:
+        return int(reg.replace('R', '').strip())
+    except Exception:
+        raise ValueError(f"Registro inválido: {reg}")
 
-# === Codificadores de formato ===
+# === Codificadores ===
+
 def encode_R(op, instr):
+    """Formato R: opcode | rs1 | rs2 | rd | shamt | funct"""
     opcode = OPCODES[op]
     rs1 = reg_num(instr.rs1)
     rs2 = reg_num(instr.rs2) if instr.rs2 else 0
     rd = reg_num(instr.rd)
     shamt = 0
     funct = FUNCT_CODES.get(op, 0)
-    return (opcode << 26) | (rs1 << 21) | (rs2 << 16) | (rd << 11) | (shamt << 6) | funct
+    code = (opcode << 26) | (rs1 << 21) | (rs2 << 16) | (rd << 11) | (shamt << 6) | funct
+    return code
 
 def encode_I(op, instr):
+    """Formato I (opcode | rs1 | rd | immediate)"""
     opcode = OPCODES[op]
     rs1 = reg_num(instr.rs1)
     rd = reg_num(instr.rd)
-    imm = int(instr.immediate)
-    imm &= 0xFFFF
-    return (opcode << 26) | (rs1 << 21) | (rd << 16) | imm
+    imm = int(instr.immediate) & 0xFFFF
+    code = (opcode << 26) | (rs1 << 21) | (rd << 16) | imm
+    return code
 
 def encode_S(op, instr):
+    """Formato S adaptado al decodificador actual del CPU"""
+    opcode = OPCODES[op]
+    base = reg_num(instr.rs1)
+    src = reg_num(instr.rs2)
+    offset = int(instr.imm) & 0xFFFF
+    # Cambiar orden a (opcode | base | src | offset)
+    code = (opcode << 26) | (base << 21) | (src << 16) | offset
+    return code
+
+def encode_B(op, instr):
+    """Formato B: opcode | rs1 | rs2 | offset"""
     opcode = OPCODES[op]
     rs1 = reg_num(instr.rs1)
     rs2 = reg_num(instr.rs2)
-    offset = int(instr.imm) & 0xFFFF
-    return (opcode << 26) | (rs1 << 21) | (rs2 << 16) | offset
+    offset = int(instr.immediate) & 0xFFFF
+    code = (opcode << 26) | (rs1 << 21) | (rs2 << 16) | offset
+    return code
 
 def encode_J(op, instr):
+    """Formato J: opcode | address"""
     opcode = OPCODES[op]
     addr = int(instr.immediate) & 0x3FFFFFF
     return (opcode << 26) | addr
 
 def encode_SYS(op):
-    opcode = OPCODES[op]
-    return (opcode << 26)
+    """Formato System: solo opcode"""
+    return OPCODES[op] << 26
 
-# === Función principal de ensamblado ===
+# === Ensamblador principal ===
 def assemble(input_file, output_file):
     with open(input_file, 'r') as f:
         lines = f.readlines()
 
-    # Preprocesamiento: arreglar líneas problemáticas antes de parsear
     patched_lines = []
     for line in lines:
         clean = line.strip()
+        if not clean:
+            continue
 
-        # Corrige formato de LUI faltante
+        # Corrige LUI si no trae R0 explícito
         if clean.upper().startswith("LUI") and clean.count(',') == 1:
             parts = clean.split(',')
             rd_part = parts[0].split()[1]
             imm_part = parts[1]
             clean = f"LUI {rd_part}, R0, {imm_part}"
 
-        # Convierte inmediatos hexadecimales (0x...) a decimales
-        hex_pattern = re.compile(r'0x[0-9A-Fa-f]+')
-        matches = hex_pattern.findall(clean)
-        for m in matches:
-            dec_val = str(int(m, 16))
-            clean = clean.replace(m, dec_val)
+        # Convierte hexadecimales
+        for match in re.findall(r'0x[0-9A-Fa-f]+', clean):
+            clean = clean.replace(match, str(int(match, 16)))
 
         patched_lines.append(clean + "\n")
 
     instrs = parse_instructions(patched_lines)
-
     bin_lines = []
 
     for instr in instrs:
         try:
-            op = instr.op
-            opcode = OPCODES.get(op)
+            op = instr.op.upper()
 
-            if op in {"ADD", "SUB", "MUL", "DIV", "MOD", "AND", "OR", "XOR", "NOT", "SLL", "SRL", "ROL"}:
+            if op in FUNCT_CODES:  # R-type
                 code = encode_R(op, instr)
             elif op in {"ADDI", "SUBI", "ANDI", "ORI", "XORI", "SLLI", "LUI"}:
                 code = encode_I(op, instr)
             elif op in {"LD", "SD"}:
                 code = encode_S(op, instr)
+            elif op in {"BEQ", "BNE", "BLT", "BGE"}:
+                code = encode_B(op, instr)
             elif op in {"J", "JAL", "JR"}:
                 code = encode_J(op, instr)
             elif op in {"NOP", "HALT"}:
                 code = encode_SYS(op)
             else:
-                print(f"[WARN] Instrucción no soportada aún: {op}")
+                print(f"[WARN] Instrucción no soportada: {op}")
                 continue
 
-            bin_str = f"{code:032b}"
-            bin_lines.append(bin_str)
+            bin_lines.append(f"{code:032b}")
 
         except Exception as e:
             print(f"[ERROR] Línea '{instr}': {e}")
 
-    # === Escribir archivo binario ===
+    # Escribir binario
     with open(output_file, 'w') as f:
         for line in bin_lines:
             f.write(line + '\n')
 
     print(f"[OK] Archivo binario generado: {output_file}")
     print(f"Total de instrucciones ensambladas: {len(bin_lines)}")
-
 
 if __name__ == "__main__":
     assemble("testsASM/test1.asm", "out/test1.bin")

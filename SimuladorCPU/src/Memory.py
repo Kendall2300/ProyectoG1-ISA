@@ -32,9 +32,9 @@ class Memory:
     self._check_range(addr)
     return self.mem[addr]
 
-  def store_bytes(self, addr: int, value: int) -> None:
+  def store_word(self, addr: int, value: int) -> None:
     """
-    Write a byte to memory.
+    Write a word to memory.
 
     Args:
         addr (int): Address where to write.

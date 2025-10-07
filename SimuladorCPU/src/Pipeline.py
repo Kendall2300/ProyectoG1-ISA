@@ -78,28 +78,55 @@ class Pipeline:
     """
     instr = self.IF_ID["instr"]
     if instr:
+      # Read register values with forwarding
       if instr.rs1:
-        instr.rs1_val = self.registers.read(instr.rs1)
+        instr.rs1_val = self._get_register_value_with_forwarding(instr.rs1)
 
       if instr.rs2:
-        instr.rs2_val = self.registers.read(instr.rs2)
+        instr.rs2_val = self._get_register_value_with_forwarding(instr.rs2)
 
-      if self.EX_MEM["instr"]:
-        hazard = self.hazard_unit.detect_hazard(instr, self.EX_MEM["instr"])
-        if hazard == "RAW":
-          self.ID_EX["instr"] = None
-          return
+      # Only check for load-use hazards (most critical)
+      if (self.ID_EX["instr"] and self.ID_EX["instr"].op == "LD" and 
+          ((instr.rs1 and self.ID_EX["instr"].rd == instr.rs1) or 
+           (instr.rs2 and self.ID_EX["instr"].rd == instr.rs2))):
+        print(f"[HAZARD] Load-use hazard: {instr} depends on load {self.ID_EX['instr']} - stalling")
+        self.ID_EX["instr"] = None
+        return
         
+      # Check for other hazards (for metrics only, don't stall)
       if self.EX_MEM["instr"]:
         hazard = self.hazard_unit.detect_hazard_waw_war(instr, self.EX_MEM["instr"])
         if hazard == "WAW":
           self.metrics["WAW"] += 1
         elif hazard == "WAR":
           self.metrics["WAR"] += 1
+          
       self.ID_EX["instr"] = instr
 
     else:
       self.ID_EX["instr"] = None
+  
+  def _get_register_value_with_forwarding(self, reg_name: str) -> int:
+    """
+    Gets register value with forwarding from later pipeline stages.
+    """
+    # Check if we can forward from MEM stage
+    if (self.EX_MEM["instr"] and self.EX_MEM["instr"].rd == reg_name and 
+        hasattr(self.EX_MEM["instr"], 'result') and self.EX_MEM["instr"].result is not None):
+      print(f"[FORWARD] Forwarding {self.EX_MEM['instr'].result} from EX/MEM stage for {reg_name}")
+      return self.EX_MEM["instr"].result
+    
+    # Check if we can forward from WB stage  
+    if (self.MEM_WB["instr"] and self.MEM_WB["instr"].rd == reg_name):
+      if hasattr(self.MEM_WB["instr"], 'result') and self.MEM_WB["instr"].result is not None:
+        print(f"[FORWARD] Forwarding {self.MEM_WB['instr'].result} from MEM/WB stage for {reg_name}")
+        return self.MEM_WB["instr"].result
+      elif hasattr(self.MEM_WB["instr"], 'loaded_value') and self.MEM_WB["instr"].loaded_value is not None:
+        print(f"[FORWARD] Forwarding loaded value {self.MEM_WB['instr'].loaded_value} from MEM/WB stage for {reg_name}")
+        return self.MEM_WB["instr"].loaded_value
+    
+    # Default: read from register file
+    return self.registers.read(reg_name)
 
   def execute(self):
     """ 

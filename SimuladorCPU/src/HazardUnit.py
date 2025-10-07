@@ -10,15 +10,16 @@ class HazardUnit:
         self.correct_predictions = 0
         self.total_branches = 0
 
-    def detect_hazard(self, instr1: Instruction, instr2: Instruction):
-        if not instr1 or not instr2:
+    def detect_hazard(self, current_instr: Instruction, previous_instr: Instruction):
+        if not current_instr or not previous_instr:
             return None
 
-        # RAW: instr2 read the registers that instr1 will write
-        if (instr1.rd and instr2.rs1) and (instr1.rd == instr2.rs1):
+        # RAW: current instruction reads a register that previous instruction will write
+        # Only hazard if the previous instruction hasn't completed write-back yet
+        if (previous_instr.rd and current_instr.rs1) and (previous_instr.rd == current_instr.rs1):
             self.RAW += 1
             return 'RAW'
-        if (instr1.rd and instr2.rs2) and (instr1.rd == instr2.rs2):
+        if (previous_instr.rd and current_instr.rs2) and (previous_instr.rd == current_instr.rs2):
             self.RAW += 1
             return 'RAW'
         return None

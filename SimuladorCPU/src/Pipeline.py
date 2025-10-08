@@ -9,6 +9,9 @@ class Pipeline:
     self.registers = RegisterFile()
     self.memory = Memory()
     self.hazard_unit = HazardUnit()
+    
+    # Console for UI logging
+    self.console = None
 
     # Instructions and Labels
     self.instructions: list[Instruction] = []
@@ -35,6 +38,21 @@ class Pipeline:
     }
     self.execution_history = []
     self.on_cycle = None
+
+  def set_console(self, console) -> None:
+    """
+    Sets the console for logging messages.
+    """
+    self.console = console
+
+  def _log(self, message: str) -> None:
+    """
+    Logs a message to the UI console if available, otherwise prints to stdout.
+    """
+    if self.console:
+      self.console.log(message)
+    else:
+      print(message)
 
   def map_labels(self, lines: str) -> dict[str, int]:
     """
@@ -89,7 +107,7 @@ class Pipeline:
       if (self.ID_EX["instr"] and self.ID_EX["instr"].op == "LD" and 
           ((instr.rs1 and self.ID_EX["instr"].rd == instr.rs1) or 
            (instr.rs2 and self.ID_EX["instr"].rd == instr.rs2))):
-        print(f"[HAZARD] Load-use hazard: {instr} depends on load {self.ID_EX['instr']} - stalling")
+        self._log(f"[HAZARD] Load-use hazard: {instr} depends on load {self.ID_EX['instr']} - stalling")
         self.ID_EX["instr"] = None
         return
         
@@ -113,16 +131,16 @@ class Pipeline:
     # Check if we can forward from MEM stage
     if (self.EX_MEM["instr"] and self.EX_MEM["instr"].rd == reg_name and 
         hasattr(self.EX_MEM["instr"], 'result') and self.EX_MEM["instr"].result is not None):
-      print(f"[FORWARD] Forwarding {self.EX_MEM['instr'].result} from EX/MEM stage for {reg_name}")
+      self._log(f"[FORWARD] Forwarding {self.EX_MEM['instr'].result} from EX/MEM stage for {reg_name}")
       return self.EX_MEM["instr"].result
     
     # Check if we can forward from WB stage  
     if (self.MEM_WB["instr"] and self.MEM_WB["instr"].rd == reg_name):
       if hasattr(self.MEM_WB["instr"], 'result') and self.MEM_WB["instr"].result is not None:
-        print(f"[FORWARD] Forwarding {self.MEM_WB['instr'].result} from MEM/WB stage for {reg_name}")
+        self._log(f"[FORWARD] Forwarding {self.MEM_WB['instr'].result} from MEM/WB stage for {reg_name}")
         return self.MEM_WB["instr"].result
       elif hasattr(self.MEM_WB["instr"], 'loaded_value') and self.MEM_WB["instr"].loaded_value is not None:
-        print(f"[FORWARD] Forwarding loaded value {self.MEM_WB['instr'].loaded_value} from MEM/WB stage for {reg_name}")
+        self._log(f"[FORWARD] Forwarding loaded value {self.MEM_WB['instr'].loaded_value} from MEM/WB stage for {reg_name}")
         return self.MEM_WB["instr"].loaded_value
     
     # Default: read from register file
@@ -247,15 +265,19 @@ class Pipeline:
     if instr:
       try:
         if instr.op in instr.R_TYPE_INSTRS and instr.rd is not None:
+          self._log(f"[WB] Writing {instr.result} to {instr.rd} ({instr.op})")
           self.registers.write(instr.rd, instr.result)
         elif instr.op in instr.I_TYPE_INSTRS and instr.rd is not None:
+          self._log(f"[WB] Writing {instr.result} to {instr.rd} ({instr.op})")
           self.registers.write(instr.rd, instr.result)
         elif instr.op == "LD" and instr.rd is not None:
+          self._log(f"[WB] Loading {instr.loaded_value} to {instr.rd} (LD)")
           self.registers.write(instr.rd, instr.loaded_value)
         elif instr.op == "JAL" and instr.rd is not None:
+          self._log(f"[WB] Writing {instr.result} to {instr.rd} (JAL)")
           self.registers.write(instr.rd, instr.result)
       except Exception as e:
-        print(f"[ERROR WB] Instruction: {instr}, Error: {e}")
+        self._log(f"[ERROR WB] Instruction: {instr}, Error: {e}")
 
     self.MEM_WB["old_instr"] = self.MEM_WB["instr"]
 
@@ -294,22 +316,22 @@ class Pipeline:
     if self.PC < len(self.instructions):
       self.active_stages.append("IF")
 
-    self.MEM_WB["old_instr"] = None
-
     cycle_info = {
         "IF": self.IF_ID["instr"],
         "ID": self.ID_EX["instr"],
         "EX": self.EX_MEM["instr"],
         "MEM": self.MEM_WB["instr"],
-        "WB": self.MEM_WB["old_instr"],
+        "WB": self.MEM_WB.get("old_instr"),
     }
     self.execution_history.append(cycle_info)
+
+    self.MEM_WB["old_instr"] = None
 
     if self.on_cycle:
       try:
         self.on_cycle(self)
       except Exception as e:
-        print(f"[ERROR on_cycle callback] Error: {e}")
+        self._log(f"[ERROR on_cycle callback] Error: {e}")
 
 
       

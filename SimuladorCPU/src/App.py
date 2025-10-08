@@ -3,6 +3,7 @@ from tkinter import ttk
 from UI.RegisterView import RegisterView
 from UI.MemoryView import MemoryView
 from UI.TextEditor import TextEditor
+from UI.Console import Console
 from Pipeline import Pipeline
 from Instruction import parse_instructions
 
@@ -11,27 +12,38 @@ class App(tk.Tk):
   def __init__(self):
     super().__init__()
 
-    # Pipeline
+    # Initialize pipeline 
     self.pipeline = Pipeline()
+    
+    # Set up pipeline callback for UI updates
+    self.pipeline.on_cycle = lambda pipeline: self.register_view.refresh()
 
     # Main window settings
     self.title("Simulador de CPU")
     self.minsize(1000, 600)
     self._create_widgets()
 
-    # Update Widgets on cycle
-    self.pipeline.on_cycle = lambda pipeline: self.register_view.refresh()
+    # Set console for pipeline logging
+    self.pipeline.set_console(self.console)
 
   def _create_widgets(self) -> None:
     """
     Creates the main application widgets.
     """
-    # Register View (Left side)
-    self.register_view = RegisterView(self, self)
+    # Main container that divides the window vertically
+    main_container = ttk.Frame(self)
+    main_container.pack(fill="both", expand=True)
+    
+    # Top section (Register View + Notebook)
+    top_section = ttk.Frame(main_container)
+    top_section.pack(side="top", fill="both", expand=True)
+    
+    # Register View (Left side of top section)
+    self.register_view = RegisterView(top_section, self)
     self.register_view.pack(side="left", fill="y")
 
-    # Notebook (Center and Right side)
-    notebook = ttk.Notebook(self)
+    # Notebook (Right side of top section)
+    notebook = ttk.Notebook(top_section)
     notebook.pack(side="right", fill="both", expand=True)
 
     # Text Editor Tab
@@ -47,6 +59,10 @@ class App(tk.Tk):
 
     memoryView = MemoryView(memoryTab, self)
     memoryView.pack(fill="both", expand=True)
+
+    # Console (Bottom section - spans the entire width)
+    self.console = Console(main_container)
+    self.console.pack(side="bottom", fill="x", pady=(5, 0))
 
   def run(self) -> None:
     """ 
@@ -82,6 +98,19 @@ class App(tk.Tk):
 
     if self.pipeline.PC >= len(self.pipeline.instructions) and stages_empty:
       self.register_view.refresh()
+      
+      # Log execution history to console
+      self.console.log("=== EXECUTION HISTORY ===")
+      for cycle, cycle_info in enumerate(self.pipeline.execution_history, 1):
+        self.console.log(f"Cycle {cycle}:")
+        self.console.log(f"  IF: {cycle_info['IF']}")
+        self.console.log(f"  ID: {cycle_info['ID']}")
+        self.console.log(f"  EX: {cycle_info['EX']}")
+        self.console.log(f"  MEM: {cycle_info['MEM']}")
+        self.console.log(f"  WB: {cycle_info['WB']}")
+        self.console.log("")
+      
+      self.console.log("=== EXECUTION COMPLETED ===")
       return
     
     self.pipeline.step()

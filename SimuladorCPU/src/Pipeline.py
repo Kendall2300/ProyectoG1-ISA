@@ -195,9 +195,9 @@ class Pipeline:
         instr.result = instr.immediate << 48
 
       elif instr.op == "LD":
-        instr.address = instr.rs1_val + instr.imm
+        instr.address = instr.rs1_val + instr.immediate
       elif instr.op == "SD":
-        instr.address = instr.rs1_val + instr.imm
+        instr.address = instr.rs1_val + instr.immediate
 
       elif instr.op in {"BEQ", "BNE", "BLT", "BGE"}:
         taken = False

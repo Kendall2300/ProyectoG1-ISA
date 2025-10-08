@@ -46,7 +46,7 @@ class Instruction:
       offset_part = tokens[2]
       offset, base = offset_part.split('(')
       base = base.strip(')')
-      self.imm = int(offset)
+      self.immediate = int(offset)
 
       if self.op == "LD":
         self.rd = reg_field

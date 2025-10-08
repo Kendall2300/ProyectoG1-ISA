@@ -144,6 +144,31 @@ def assemble(input_file, output_file):
                 # HBLOCK rs1 (use I-like packing: opcode | rs1 | rd=0 | imm=0)
                 opcode = OPCODES[op]
                 rs1 = reg_num(instr.rs1)
+            # Vault / Hash / Sign (special encodings)
+            elif op in {"VSTORE", "VINIT"}:
+                # VSTORE vidx, rs1  -> opcode | vidx in rs1(5) | rs1 reg in rs2
+                opcode = OPCODES[op]
+                vidx = instr.vidx
+                rs1_reg = reg_num(instr.rs1) if instr.rs1 else 0
+                code = (opcode << 26) | (vidx << 21) | (rs1_reg << 16)
+
+            elif op == "HBLOCK":
+                # HBLOCK rs1 (use I-like packing: opcode | rs1 | rd=0 | imm=0)
+                opcode = OPCODES[op]
+                rs1 = reg_num(instr.rs1)
+                code = (opcode << 26) | (rs1 << 21)
+
+            elif op in {"HMULK", "HMODP"}:
+                # HMULK rd, rs1  -> pkg as I: opcode | rs1 | rd
+                opcode = OPCODES[op]
+                rd = reg_num(instr.rd)
+                rs1 = reg_num(instr.rs1)
+                code = (opcode << 26) | (rs1 << 21) | (rd << 16)
+
+            elif op == "HFINAL":
+                # HFINAL rd -> opcode | rd in bits [20:16]
+                opcode = OPCODES[op]
+                rd = reg_num(instr.rd)
                 code = (opcode << 26) | (rs1 << 21)
 
             elif op in {"HMULK", "HMODP"}:

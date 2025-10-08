@@ -3,9 +3,15 @@ from tkinter import ttk
 
 
 class TextEditor(ttk.Frame):
-  def __init__(self, parent: ttk.Frame, on_run_callback: callable):
+  def __init__(
+      self, parent: ttk.Frame, 
+      on_run_callback: callable, 
+      on_compile_callback: callable,
+      on_load_callback):
     super().__init__(parent)
     self.on_run_callback = on_run_callback
+    self.on_compile_callback = on_compile_callback
+    self.on_load_callback = on_load_callback
     self._create_widgets()
     self._bind_events()
 
@@ -17,9 +23,17 @@ class TextEditor(ttk.Frame):
     toolbar = ttk.Frame(self, relief="raised", borderwidth=2)
     toolbar.pack(side="top", fill="x")
 
+    # Load File Button
+    load_button = ttk.Button(toolbar, text="Load File", command=self.on_load_callback)
+    load_button.pack(side="left", pady=10, padx=10)
+
     # Run Button
     run_button = ttk.Button(toolbar, text="Run", command=self.on_run_callback)
-    run_button.pack(side="left", pady=10, padx=10)
+    run_button.pack(side="left", pady=10)
+
+    # Compile Button
+    compile_button = ttk.Button(toolbar, text="Compile", command=self.on_compile_callback)
+    compile_button.pack(side="left", pady=10, padx=10)
 
     # Main Container
     main_container = ttk.Frame(self)
@@ -38,15 +52,15 @@ class TextEditor(ttk.Frame):
     )
     self.text.pack(side="right", fill="both", expand=True)
 
-    self._update_linenumbers()
+    self.update_linenumbers()
 
   def _bind_events(self) -> None:
     """
     Binds necessary events to the text widget for updating line numbers.
     """
-    self.text.bind("<KeyRelease>", self._update_linenumbers)
-    self.text.bind("<MouseWheel>", self._update_linenumbers)
-    self.text.bind("<Configure>", self._update_linenumbers)
+    self.text.bind("<KeyRelease>", self.update_linenumbers)
+    self.text.bind("<MouseWheel>", self.update_linenumbers)
+    self.text.bind("<Configure>", self.update_linenumbers)
     self.text.config(yscrollcommand=self._on_text_scroll)
     self.linenum.bind("<MouseWheel>", self._on_linenum_scroll)
 
@@ -69,7 +83,7 @@ class TextEditor(ttk.Frame):
     self.text.yview_scroll(int(-1 * (event.delta / 120)), "units")
     self._update_linenumbers()
 
-  def _update_linenumbers(self, event: tk.Event = None) -> None:
+  def update_linenumbers(self, event: tk.Event = None) -> None:
     """
     Updates the line numbers displayed in the line number canvas.
     Args:

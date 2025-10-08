@@ -1,6 +1,3 @@
-from bitarray import bitarray
-
-
 class RegisterFile:
   # Constants:
   # --- General Purpose Registers (GPR) ---
@@ -33,7 +30,7 @@ class RegisterFile:
     # # Internal Hash State registers
     # self._HASH_STATE = {f'HS_{value}': bitarray('0' * self.HASH_REG_SIZE) for value in self.HASH_VALUES}        # Hash state registers
 
-  def read(self, reg_name: str) -> bitarray:                                                 
+  def read(self, reg_name: str):                                                 
     """
     Reads the value of a specified GPR register.
 

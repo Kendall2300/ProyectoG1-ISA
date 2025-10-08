@@ -1,7 +1,8 @@
-from RegisterFile import RegisterFile
-from Memory import Memory
-from HazardUnit import HazardUnit
+from CPU.RegisterFile import RegisterFile
+from CPU.Memory import Memory
+from CPU.HazardUnit import HazardUnit
 from Instruction import Instruction, parse_instructions
+
 
 class Pipeline:
   def __init__(self):

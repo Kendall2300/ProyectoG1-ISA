@@ -1,10 +1,11 @@
 import tkinter as tk
 from tkinter import ttk
+from tkinter import filedialog
 from UI.RegisterView import RegisterView
 from UI.MemoryView import MemoryView
 from UI.TextEditor import TextEditor
 from UI.Console import Console
-from Pipeline import Pipeline
+from CPU.Pipeline import Pipeline
 from Instruction import parse_instructions
 
 
@@ -47,7 +48,12 @@ class App(tk.Tk):
     textEditorTab = ttk.Frame(notebook)
     notebook.add(textEditorTab, text="Text Editor")
 
-    self.textEditor = TextEditor(textEditorTab, self._on_run_button_click)
+    self.textEditor = TextEditor(
+      textEditorTab, 
+      on_run_callback=self._on_run_button_click, 
+      on_compile_callback=self._on_compile_button_click,
+      on_load_callback=self._on_load_button_click
+    )
     self.textEditor.pack(fill="both", expand=True)
 
     # Memory View Tab
@@ -125,3 +131,25 @@ class App(tk.Tk):
     
     self.pipeline.step()
     self.after(50, self._step_loop)
+  
+  def _on_compile_button_click(self):
+    pass
+
+  def _on_load_button_click(self):
+    filepath = filedialog.askopenfilename(
+      filetypes=[("Archivos ASM", "*.asm")],
+      title="Seleccionar archivo ASM"
+    )
+
+    if filepath:
+      try:
+        with open(filepath, "r", encoding="utf-8") as file:
+          content = file.read()
+
+          # Clear Text Editor
+          self.textEditor.text.delete("1.0", tk.END)
+          # Insert text
+          self.textEditor.text.insert(tk.END, content)
+          self.textEditor.update_linenumbers()
+      except Exception as e:
+        self.console.log(f"Error reading file: {e}")

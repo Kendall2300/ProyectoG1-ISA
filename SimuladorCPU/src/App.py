@@ -21,7 +21,7 @@ class App(tk.Tk):
     self._create_widgets()
 
     # Set console for pipeline logging
-    self.pipeline.set_console(self.console)
+    self.pipeline.console = self.console
 
   def _create_widgets(self) -> None:
     """

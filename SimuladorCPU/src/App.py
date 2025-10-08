@@ -14,9 +14,6 @@ class App(tk.Tk):
 
     # Initialize pipeline 
     self.pipeline = Pipeline()
-    
-    # Set up pipeline callback for UI updates
-    self.pipeline.on_cycle = lambda pipeline: self.register_view.refresh()
 
     # Main window settings
     self.title("Simulador de CPU")
@@ -57,12 +54,25 @@ class App(tk.Tk):
     memoryTab = ttk.Frame(notebook)
     notebook.add(memoryTab, text="Memory View")
 
-    memoryView = MemoryView(memoryTab, self)
-    memoryView.pack(fill="both", expand=True)
+    self.memory_view = MemoryView(memoryTab, self)
+    self.memory_view.pack(fill="both", expand=True)
 
     # Console (Bottom section - spans the entire width)
     self.console = Console(main_container)
     self.console.pack(side="bottom", fill="x", pady=(5, 0))
+    
+    # Set console for pipeline logging
+    self.pipeline.console = self.console
+    
+    # Set up pipeline callback for UI updates 
+    self.pipeline.on_cycle = lambda pipeline: self._update_views()
+
+  def _update_views(self) -> None:
+    """
+    Updates all views in the UI.
+    """
+    self.register_view.refresh()
+    self.memory_view.refresh()
 
   def run(self) -> None:
     """ 

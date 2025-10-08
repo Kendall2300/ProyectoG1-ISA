@@ -39,12 +39,6 @@ class Pipeline:
     self.execution_history = []
     self.on_cycle = None
 
-  def set_console(self, console) -> None:
-    """
-    Sets the console for logging messages.
-    """
-    self.console = console
-
   def _log(self, message: str) -> None:
     """
     Logs a message to the UI console if available, otherwise prints to stdout.

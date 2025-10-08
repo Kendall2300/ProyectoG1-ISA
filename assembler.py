@@ -1,5 +1,5 @@
 # assembler.py
-# Versión 2.0 — Alineada 100% con el ISA SecureRISC y simulador
+# Versión 2.1 — Completo: R, I, S, B, J, Vault/Hash/Sign (SecureRISC)
 
 import re
 from Instruction import parse_instructions
@@ -27,65 +27,61 @@ FUNCT_CODES = {
     "SLL": 0x00, "SRL": 0x01, "ROL": 0x02
 }
 
-# === Conversión de registro ===
 def reg_num(reg):
     try:
         return int(reg.replace('R', '').strip())
     except Exception:
         raise ValueError(f"Registro inválido: {reg}")
 
-# === Codificadores ===
-
+# --- Encoders por formato (alineados al ISA) ---
 def encode_R(op, instr):
-    """Formato R: opcode | rs1 | rs2 | rd | shamt | funct"""
     opcode = OPCODES[op]
     rs1 = reg_num(instr.rs1)
     rs2 = reg_num(instr.rs2) if instr.rs2 else 0
-    rd = reg_num(instr.rd)
+    rd  = reg_num(instr.rd)
     shamt = 0
     funct = FUNCT_CODES.get(op, 0)
-    code = (opcode << 26) | (rs1 << 21) | (rs2 << 16) | (rd << 11) | (shamt << 6) | funct
-    return code
+    return (opcode << 26) | (rs1 << 21) | (rs2 << 16) | (rd << 11) | (shamt << 6) | funct
 
 def encode_I(op, instr):
-    """Formato I (opcode | rs1 | rd | immediate)"""
+    # opcode | rs1 | rd | imm (16 bits)
     opcode = OPCODES[op]
     rs1 = reg_num(instr.rs1)
-    rd = reg_num(instr.rd)
+    rd  = reg_num(instr.rd)
     imm = int(instr.immediate) & 0xFFFF
-    code = (opcode << 26) | (rs1 << 21) | (rd << 16) | imm
-    return code
+    return (opcode << 26) | (rs1 << 21) | (rd << 16) | imm
 
 def encode_S(op, instr):
-    """Formato S adaptado al decodificador actual del CPU"""
+    # LD/SD: opcode | base(rs1) | src/rd (rs2) | offset (16)
     opcode = OPCODES[op]
     base = reg_num(instr.rs1)
-    src = reg_num(instr.rs2)
+    src  = reg_num(instr.rs2)
     offset = int(instr.imm) & 0xFFFF
-    # Cambiar orden a (opcode | base | src | offset)
-    code = (opcode << 26) | (base << 21) | (src << 16) | offset
-    return code
+    return (opcode << 26) | (base << 21) | (src << 16) | offset
 
 def encode_B(op, instr):
-    """Formato B: opcode | rs1 | rs2 | offset"""
     opcode = OPCODES[op]
     rs1 = reg_num(instr.rs1)
     rs2 = reg_num(instr.rs2)
     offset = int(instr.immediate) & 0xFFFF
-    code = (opcode << 26) | (rs1 << 21) | (rs2 << 16) | offset
-    return code
+    return (opcode << 26) | (rs1 << 21) | (rs2 << 16) | offset
 
 def encode_J(op, instr):
-    """Formato J: opcode | address"""
     opcode = OPCODES[op]
     addr = int(instr.immediate) & 0x3FFFFFF
     return (opcode << 26) | addr
 
-def encode_SYS(op):
-    """Formato System: solo opcode"""
-    return OPCODES[op] << 26
+def encode_V(op, instr):
+    # Vault/Hash/Sign family: we place vidx/rd in the rs1/rd fields as appropriate.
+    opcode = OPCODES[op]
+    # Different V ops have different operand semantics; assembler selects mapping below.
+    # This function is a fallback; higher-level logic will use encode_I/R or custom packing.
+    return (opcode << 26)
 
-# === Ensamblador principal ===
+def encode_SYS(op):
+    return (OPCODES[op] << 26)
+
+# --- Ensamblado principal ---
 def assemble(input_file, output_file):
     with open(input_file, 'r') as f:
         lines = f.readlines()
@@ -93,17 +89,17 @@ def assemble(input_file, output_file):
     patched_lines = []
     for line in lines:
         clean = line.strip()
-        if not clean:
+        if not clean or clean.startswith('#'):
             continue
 
-        # Corrige LUI si no trae R0 explícito
+        # LUI convenient normalization: allow "LUI R1, 0x10" or "LUI R1, R0, 0x10"
         if clean.upper().startswith("LUI") and clean.count(',') == 1:
             parts = clean.split(',')
             rd_part = parts[0].split()[1]
             imm_part = parts[1]
             clean = f"LUI {rd_part}, R0, {imm_part}"
 
-        # Convierte hexadecimales
+        # convert hex immediates
         for match in re.findall(r'0x[0-9A-Fa-f]+', clean):
             clean = clean.replace(match, str(int(match, 16)))
 
@@ -116,20 +112,73 @@ def assemble(input_file, output_file):
         try:
             op = instr.op.upper()
 
-            if op in FUNCT_CODES:  # R-type
+            # R-type arithmetic/logical
+            if op in FUNCT_CODES:
                 code = encode_R(op, instr)
+
+            # I-type arithmetic and LUI family
             elif op in {"ADDI", "SUBI", "ANDI", "ORI", "XORI", "SLLI", "LUI"}:
                 code = encode_I(op, instr)
+
+            # Load/Store
             elif op in {"LD", "SD"}:
                 code = encode_S(op, instr)
+
+            # Branches
             elif op in {"BEQ", "BNE", "BLT", "BGE"}:
                 code = encode_B(op, instr)
+
+            # Jumps
             elif op in {"J", "JAL", "JR"}:
                 code = encode_J(op, instr)
+
+            # Vault / Hash / Sign (special encodings)
+            elif op in {"VSTORE", "VINIT"}:
+                # VSTORE vidx, rs1  -> opcode | vidx in rs1(5) | rs1 reg in rs2
+                opcode = OPCODES[op]
+                vidx = instr.vidx
+                rs1_reg = reg_num(instr.rs1) if instr.rs1 else 0
+                code = (opcode << 26) | (vidx << 21) | (rs1_reg << 16)
+
+            elif op == "HBLOCK":
+                # HBLOCK rs1 (use I-like packing: opcode | rs1 | rd=0 | imm=0)
+                opcode = OPCODES[op]
+                rs1 = reg_num(instr.rs1)
+                code = (opcode << 26) | (rs1 << 21)
+
+            elif op in {"HMULK", "HMODP"}:
+                # HMULK rd, rs1  -> pkg as I: opcode | rs1 | rd
+                opcode = OPCODES[op]
+                rd = reg_num(instr.rd)
+                rs1 = reg_num(instr.rs1)
+                code = (opcode << 26) | (rs1 << 21) | (rd << 16)
+
+            elif op == "HFINAL":
+                # HFINAL rd -> opcode | rd in bits [20:16]
+                opcode = OPCODES[op]
+                rd = reg_num(instr.rd)
+                code = (opcode << 26) | (0 << 21) | (rd << 16)
+
+            elif op == "VSIGN":
+                # VSIGN rd, vidx -> opcode | vidx in rs1 | rd in rd field
+                opcode = OPCODES[op]
+                rd = reg_num(instr.rd)
+                vidx = instr.vidx
+                code = (opcode << 26) | (vidx << 21) | (rd << 16)
+
+            elif op == "VVERIF":
+                # VVERIF rs, vidx -> opcode | vidx in rs1 | rs register in rs2
+                opcode = OPCODES[op]
+                rs = reg_num(instr.rs)
+                vidx = instr.vidx
+                code = (opcode << 26) | (vidx << 21) | (rs << 16)
+
+            # System
             elif op in {"NOP", "HALT"}:
                 code = encode_SYS(op)
+
             else:
-                print(f"[WARN] Instrucción no soportada: {op}")
+                print(f"[WARN] Instrucción no soportada aún: {op}")
                 continue
 
             bin_lines.append(f"{code:032b}")
@@ -137,7 +186,6 @@ def assemble(input_file, output_file):
         except Exception as e:
             print(f"[ERROR] Línea '{instr}': {e}")
 
-    # Escribir binario
     with open(output_file, 'w') as f:
         for line in bin_lines:
             f.write(line + '\n')
@@ -146,4 +194,4 @@ def assemble(input_file, output_file):
     print(f"Total de instrucciones ensambladas: {len(bin_lines)}")
 
 if __name__ == "__main__":
-    assemble("testsASM/test1.asm", "out/test1.bin")
+    assemble("testsASM/test2.asm", "out/test2.bin")

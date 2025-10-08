@@ -14,4 +14,4 @@ class Console(ttk.Frame):
 
   def log(self, message: str) -> None:
     self.text_area.insert(tk.END, message + "\n")
-    self.text_area.see(tk.END)
+    self.text_area.see(tk.END) # cambios

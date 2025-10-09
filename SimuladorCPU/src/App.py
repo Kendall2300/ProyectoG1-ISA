@@ -14,6 +14,7 @@ import os
 class App(tk.Tk):
   def __init__(self):
     super().__init__()
+    self.output_directory = "SimuladorCPU/out"
 
     # Initialize pipeline 
     self.pipeline = Pipeline()
@@ -137,10 +138,10 @@ class App(tk.Tk):
     asmFilepath = self._create_asm_file(code)
 
     # Assemble code
-    assemble(asmFilepath, "out/program.bin")
+    outputFilePath = os.path.join(self.output_directory, "program.bin")
+    assemble(asmFilepath, outputFilePath)
 
-  def _create_asm_file(self, code: str, filename: str = "program.asm", 
-                       directory: str = "out") -> str:
+  def _create_asm_file(self, code: str, filename: str = "program.asm") -> str:
     """
     Creates an ASM file with the given code.
 
@@ -154,8 +155,8 @@ class App(tk.Tk):
     """
     try:
       # Create directory
-      os.makedirs(directory, exist_ok=True)
-      filepath = os.path.join(directory, filename)
+      os.makedirs(self.output_directory, exist_ok=True)
+      filepath = os.path.join(self.output_directory, filename)
 
       # Create ASM file
       with open(filepath, "w", encoding="utf-8") as file:

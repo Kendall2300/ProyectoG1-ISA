@@ -71,7 +71,7 @@ class TextEditor(ttk.Frame):
         *args: Arguments from the text widget's yscrollcommand.
     """
     self.linenum.yview_moveto(args[0])
-    self._update_linenumbers()
+    self.update_linenumbers()
 
   def _on_linenum_scroll(self, event: tk.Event) -> None:
     """

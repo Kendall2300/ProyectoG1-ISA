@@ -7,6 +7,8 @@ from UI.TextEditor import TextEditor
 from UI.Console import Console
 from CPU.Pipeline import Pipeline
 from Instruction import parse_instructions
+from assembler import assemble
+import os
 
 
 class App(tk.Tk):
@@ -21,14 +23,11 @@ class App(tk.Tk):
     self.minsize(1000, 600)
     self._create_widgets()
 
-    # Set console for pipeline logging
-    self.pipeline.console = self.console
-
   def _create_widgets(self) -> None:
     """
     Creates the main application widgets.
     """
-    # Main container that divides the window vertically
+    # Main container
     main_container = ttk.Frame(self)
     main_container.pack(fill="both", expand=True)
     
@@ -73,18 +72,18 @@ class App(tk.Tk):
     # Set up pipeline callback for UI updates 
     self.pipeline.on_cycle = lambda pipeline: self._update_views()
 
+  def run(self) -> None:
+    """ 
+    Starts the main application loop.
+    """
+    self.mainloop()
+
   def _update_views(self) -> None:
     """
     Updates all views in the UI.
     """
     self.register_view.refresh()
     self.memory_view.refresh()
-
-  def run(self) -> None:
-    """ 
-    Starts the main application loop.
-    """
-    self.mainloop()
 
   def _on_run_button_click(self) -> None:
     """
@@ -133,14 +132,51 @@ class App(tk.Tk):
     self.after(50, self._step_loop)
   
   def _on_compile_button_click(self):
-    pass
+    # Create ASM file
+    code = self.textEditor.get_code()
+    asmFilepath = self._create_asm_file(code)
+
+    # Assemble code
+    assemble(asmFilepath, "out/program.bin")
+
+  def _create_asm_file(self, code: str, filename: str = "program.asm", 
+                       directory: str = "out") -> str:
+    """
+    Creates an ASM file with the given code.
+
+    Args:
+        code (str): The assembly code to write to the file.
+        filename (str): The name of the ASM file. Defaults to "program.asm".
+        directory (str): The directory where the ASM file will be saved. Defaults to "out".
+
+    Returns:
+        str: The path to the created ASM file.
+    """
+    try:
+      # Create directory
+      os.makedirs(directory, exist_ok=True)
+      filepath = os.path.join(directory, filename)
+
+      # Create ASM file
+      with open(filepath, "w", encoding="utf-8") as file:
+        file.write(code)
+      return filepath
+    
+    except Exception as e:
+      self.console.log(f"Error saving file: {e}")
 
   def _on_load_button_click(self):
+    """
+    Handles the Load button click event.
+    Opens a file dialog to select an ASM file and loads its content into the text editor.
+    """
+    # Open file explorer dialog
     filepath = filedialog.askopenfilename(
       filetypes=[("Archivos ASM", "*.asm")],
       title="Seleccionar archivo ASM"
     )
 
+    # Load file content into text editor
     if filepath:
       try:
         with open(filepath, "r", encoding="utf-8") as file:
@@ -148,6 +184,7 @@ class App(tk.Tk):
 
           # Clear Text Editor
           self.textEditor.text.delete("1.0", tk.END)
+
           # Insert text
           self.textEditor.text.insert(tk.END, content)
           self.textEditor.update_linenumbers()

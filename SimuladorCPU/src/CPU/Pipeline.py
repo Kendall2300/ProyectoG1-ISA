@@ -9,6 +9,29 @@ class Pipeline:
     self.registers = RegisterFile()
     self.memory = Memory()
     self.hazard_unit = HazardUnit()
+
+    # Secure Vault registers - moved from RegisterFile for security
+    # Constants for Vault registers
+    self.VAULT_NUM_KEYS = 4                    # Number of keys in the vault
+    self.SECURE_VAULT_REG_SIZE = 64            # Size of secure vault registers in bits
+    self.INIT_REG_SIZE = 64                    # Size of init registers in bits
+    self.HASH_VALUES = ['A', 'B', 'C', 'D']   # Initial hash values for the hash function
+    self.HASH_REG_SIZE = 64                    # Size of hash function registers in bits
+    
+    # Secure Vault registers (using integers instead of bitarray for simplicity)
+    self._VAULT = {f'KEY{i}': 0 for i in range(self.VAULT_NUM_KEYS)}                                        # Vault register
+    self._INIT = {f'{value}': 0 for value in self.HASH_VALUES}                                              # Hash init values registers
+
+    # Internal Hash State registers
+    self._HASH_STATE = {f'HS_{value}': 0 for value in self.HASH_VALUES}                                     # Hash state registers
+    
+    # Initialize with some demo values for testing
+    self._VAULT['KEY0'] = 0x1234567890ABCDEF
+    self._VAULT['KEY1'] = 0xFEDCBA0987654321
+    self._INIT['A'] = 0x67452301EFCDAB89
+    self._INIT['B'] = 0x98BADCFE10325476
+    self._HASH_STATE['HS_A'] = 0x0123456789ABCDEF
+    self._HASH_STATE['HS_B'] = 0xFEDCBA9876543210
     
     # Console for UI logging
     self.console = None
@@ -120,17 +143,23 @@ class Pipeline:
           elif func == 0x01: decoded_instr['mnemonic'] = 'SRL'
           elif func == 0x02: decoded_instr['mnemonic'] = 'ROL'
 
-      elif opcode == 0x03:  # I-type
+      elif opcode == 0x03:  # I-type con nuevo formato
         decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
         decoded_instr['rd'] = (raw_instr >> 16) & 0x1F
-        decoded_instr['imm'] = raw_instr & 0xFFFF
+        decoded_instr['funct'] = (raw_instr >> 12) & 0xF  # Campo funct de 4 bits
+        decoded_instr['imm'] = raw_instr & 0xFFF  # Inmediato de 12 bits
         decoded_instr['instruction_type'] = 'I'
         
-        # For I-type with opcode 0x03, we need to distinguish by examining the instruction pattern
-        # Since the assembler uses the same opcode for all I-type arithmetic, we need another way
-        # Looking at the actual instruction patterns or use a different encoding
-        # For now, assume all 0x03 opcodes are ADDI (this needs to be fixed in assembler)
-        decoded_instr['mnemonic'] = 'ADDI'
+        # Determinar la instrucción específica usando el campo funct
+        funct = decoded_instr['funct']
+        if funct == 0x00: decoded_instr['mnemonic'] = 'ADDI'
+        elif funct == 0x01: decoded_instr['mnemonic'] = 'SUBI'
+        elif funct == 0x02: decoded_instr['mnemonic'] = 'ANDI'
+        elif funct == 0x03: decoded_instr['mnemonic'] = 'ORI'
+        elif funct == 0x04: decoded_instr['mnemonic'] = 'XORI'
+        elif funct == 0x05: decoded_instr['mnemonic'] = 'SLLI'
+        elif funct == 0x06: decoded_instr['mnemonic'] = 'LUI'
+        else: decoded_instr['mnemonic'] = 'UNKNOWN_I'
 
       elif opcode == 0x04:  # LD
         decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
@@ -146,25 +175,82 @@ class Pipeline:
         decoded_instr['instruction_type'] = 'S'
         decoded_instr['mnemonic'] = 'SD'
 
-      elif opcode == 0x06:  # B-type CHECK
+      elif opcode == 0x06:  # B-type con nuevo formato
         decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
         decoded_instr['rs2'] = (raw_instr >> 16) & 0x1F
-        decoded_instr['imm'] = raw_instr & 0xFFFF
+        decoded_instr['funct'] = (raw_instr >> 12) & 0xF  # Campo funct de 4 bits
+        decoded_instr['imm'] = raw_instr & 0xFFF  # Offset de 12 bits
         decoded_instr['instruction_type'] = 'B'
         
-        func = (raw_instr >> 11) & 0x1F
-        if func == 0x00: decoded_instr['mnemonic'] = 'BEQ'
-        elif func == 0x01: decoded_instr['mnemonic'] = 'BNE'
-        elif func == 0x02: decoded_instr['mnemonic'] = 'BLT'
-        elif func == 0x03: decoded_instr['mnemonic'] = 'BGE'
+        # Determinar la instrucción específica usando el campo funct
+        funct = decoded_instr['funct']
+        if funct == 0x00: decoded_instr['mnemonic'] = 'BEQ'
+        elif funct == 0x01: decoded_instr['mnemonic'] = 'BNE'
+        elif funct == 0x02: decoded_instr['mnemonic'] = 'BLT'
+        elif funct == 0x03: decoded_instr['mnemonic'] = 'BGE'
+        else: decoded_instr['mnemonic'] = 'UNKNOWN_B'
 
-      elif opcode in {0x07, 0x08}:  # J-type CHECK
+      elif opcode == 0x07:  # J - Jump
         decoded_instr['imm'] = raw_instr & 0x3FFFFFF
         decoded_instr['instruction_type'] = 'J'
-        if opcode == 0x07: decoded_instr['mnemonic'] = 'J'
-        elif opcode == 0x08: 
-          decoded_instr['mnemonic'] = 'JR'
-          decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
+        decoded_instr['mnemonic'] = 'J'
+        
+      elif opcode == 0x08:  # JAL - Jump and Link
+        decoded_instr['imm'] = raw_instr & 0x3FFFFFF
+        decoded_instr['instruction_type'] = 'J'
+        decoded_instr['mnemonic'] = 'JAL'
+        
+      elif opcode == 0x09:  # JR - Jump Register
+        decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
+        decoded_instr['instruction_type'] = 'J'
+        decoded_instr['mnemonic'] = 'JR'
+
+      elif opcode == 0x10:  # Vault operations (VSTORE/VINIT)
+        decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F  # vidx
+        decoded_instr['rs2'] = (raw_instr >> 16) & 0x1F  # reg
+        decoded_instr['instruction_type'] = 'V'
+
+        # If reg is R0, treat as VINIT
+        if decoded_instr['rs2'] == 0:  
+          decoded_instr['mnemonic'] = 'VINIT'
+        else:
+          decoded_instr['mnemonic'] = 'VSTORE'
+
+      elif opcode == 0x11:  # Hash family (HBLOCK, HMULK, HMODP, HFINAL)
+        decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
+        decoded_instr['rs2'] = (raw_instr >> 16) & 0x1F
+        decoded_instr['rd'] = (raw_instr >> 16) & 0x1F
+        decoded_instr['imm'] = raw_instr & 0xFFFF
+        decoded_instr['instruction_type'] = 'V'
+        
+        # Distinguish by presence of fields:
+        # HBLOCK: rs1 holds register with 64-bit block
+        # HMULK: rd, rs1 pattern
+        # HMODP: rd, rs1 pattern
+        # HFINAL: rd
+        # To identify: if rd==0 and rs2==0 -> HBLOCK (we rely on simulator packing)
+        if decoded_instr['rd'] == 0 and decoded_instr['rs2'] == 0:
+          decoded_instr['mnemonic'] = 'HBLOCK'
+        # HMULK: rd, rs1 pattern
+        # HMODP: rd, rs1 pattern
+        elif decoded_instr['rs1'] == 0 and decoded_instr['rd'] != 0:
+          decoded_instr['mnemonic'] = 'HFINAL'
+
+      elif opcode == 0x12:  # Signature family (VSIGN, VVERIF)
+        decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F   # vidx
+        decoded_instr['rs2'] = (raw_instr >> 16) & 0x1F   # payload reg or rd depending
+        target = decoded_instr['rs2'] & 0x1F
+
+        if decoded_instr['rs2'] != 0:
+          decoded_instr['result'] = target
+        else:
+          decoded_instr['result'] = decoded_instr['rd']
+
+        decoded_instr['instruction_type'] = 'V'
+        
+        func = raw_instr & 0x3F
+        if func == 0x00: decoded_instr['mnemonic'] = 'VSIGN'
+        elif func == 0x01: decoded_instr['mnemonic'] = 'VVERIF'
 
       elif opcode == 0x3F:  # System (HALT/NOP)
         decoded_instr['instruction_type'] = 'SYS'
@@ -208,6 +294,10 @@ class Pipeline:
     
     # Default: read from register file
     return self.registers.read(f"R{reg_num}")
+  
+  def rol64(x, n):
+    x &= 0xFFFFFFFFFFFFFFFF
+    return ((x << n) | (x >> (64 - n))) & 0xFFFFFFFFFFFFFFFF
 
   def execute(self):
     """ 
@@ -316,6 +406,53 @@ class Pipeline:
         self.PC = instr['imm']
       elif mnemonic == "JR":
         self.PC = instr['rs1_val']
+
+      # Vault Operations
+      elif mnemonic == "VINIT":
+        # Load INIT values into HS registers
+        self._HASH_STATE['HS_A'] = self._INIT['A']
+        self._HASH_STATE['HS_B'] = self._INIT['B']
+        self._HASH_STATE['HS_C'] = self._INIT['C']
+        self._HASH_STATE['HS_D'] = self._INIT['D']
+      elif mnemonic == "VSTORE":
+        vidx = instr['rs1'] & 0x1F
+        regn = instr['rs2'] & 0x1F
+        if 0 <= vidx < 4:
+          val = self.registers.read(f"R{regn}")
+          self._VAULT[f'KEY{vidx}'] = val & 0xFFFFFFFFFFFFFFFF
+
+      # Hash Operations
+      elif mnemonic == "HBLOCK":
+        block = instr['rs1_val'] & 0xFFFFFFFFFFFFFFFF
+        A = self._HASH_STATE['HS_A']; B = self._HASH_STATE['HS_B']; C = self._HASH_STATE['HS_C']; D = self._HASH_STATE['HS_D']
+        f = (A & B) | ((~A) & C)
+        g = (B & C) | ((~B) & D)
+        h = A ^ B ^ C ^ D
+        mul = (block * 0x9e3779b97f4a7c15) & 0xFFFFFFFFFFFFFFFF
+        A = (self.rol64((A + f + mul) & 0xFFFFFFFFFFFFFFFF, 7) + B) & 0xFFFFFFFFFFFFFFFF
+        B = (self.rol64((B + g + block) & 0xFFFFFFFFFFFFFFFF, 11) + (C * 3)) & 0xFFFFFFFFFFFFFFFF
+        C = (self.rol64((C + h + mul) & 0xFFFFFFFFFFFFFFFF, 17) + (D % 0xFFFFFFFB)) & 0xFFFFFFFFFFFFFFFF
+        D = (self.rol64((D + A + block) & 0xFFFFFFFFFFFFFFFF, 19) ^ ((f * 5) & 0xFFFFFFFFFFFFFFFF)) & 0xFFFFFFFFFFFFFFFF
+        self._HASH_STATE['HS_A'], self._HASH_STATE['HS_B'], self._HASH_STATE['HS_C'], self._HASH_STATE['HS_D'] = A, B, C, D
+      elif mnemonic == "HMULK":
+        val = instr['rs1_val'] & 0xFFFFFFFFFFFFFFFF
+        CONST = 0x9e3779b97f4a7c15 & 0xFFFFFFFFFFFFFFFF
+        instr['result'] = (val * CONST) & 0xFFFFFFFFFFFFFFFF
+      elif mnemonic == "HFINAL":
+        A = self._HASH_STATE['HS_A']; B = self._HASH_STATE['HS_B']; C = self._HASH_STATE['HS_C']; D = self._HASH_STATE['HS_D']
+        instr['result'] = A ^ B ^ C ^ D
+
+      # Signature Operations
+      elif mnemonic == "VSIGN":
+        vidx = instr['rs1'] & 0x1F
+        if 0 <= vidx < self.VAULT_NUM_KEYS:
+          k = self._VAULT[f'KEY{vidx}']
+          a = self._HASH_STATE['HS_A'] ^ k
+          b = self._HASH_STATE['HS_B'] ^ k
+          c = self._HASH_STATE['HS_C'] ^ k
+          d = self._HASH_STATE['HS_D'] ^ k
+          instr['result'] = (a + b + c + d) & 0xFFFFFFFFFFFFFFFF
+      # VVERIF
 
       # System Operations
       elif mnemonic == "HALT":
@@ -472,3 +609,109 @@ class Pipeline:
         self.on_cycle(self)
       except Exception as e:
         self._log(f"[ERROR on_cycle callback] Error: {e}")
+
+  # VAULT register methods
+  def read_vault(self, key_name: str) -> int:
+    """
+    Reads the value of a specified vault key.
+
+    Args:
+        key_name (str): The name of the vault key to read (e.g., 'KEY0', 'KEY1', ..., 'KEY3').  
+    Returns:
+        int: The value of the specified vault key as an integer.
+    Raises:
+        ValueError: If the vault key name is invalid.
+    """
+    if key_name not in self._VAULT:
+      raise ValueError(f"Invalid vault key name: {key_name}")
+    
+    return self._VAULT[key_name]
+    
+  def write_vault(self, key_name: str, value: int) -> None:
+    """
+    Writes a value to a specified vault key.
+
+    Args:
+        key_name (str): The name of the vault key to write to (e.g., 'KEY0', 'KEY1', ..., 'KEY3').
+        value (int): The value to write to the vault key (must be a 64-bit unsigned integer).
+        
+    Raises:
+        ValueError: If the vault key name is invalid.
+    """
+    if key_name not in self._VAULT:
+      raise ValueError(f"Invalid vault key name: {key_name}")
+    
+    if not (0 <= value < 2**self.SECURE_VAULT_REG_SIZE):
+      raise ValueError("Value must be a 64-bit unsigned integer.")
+    
+    self._VAULT[key_name] = value
+
+  def read_init(self, init_name: str) -> int:
+    """
+    Reads the value of a specified init value.
+
+    Args:
+        init_name (str): The name of the init value to read (e.g., 'A', 'B', 'C', 'D').  
+    Returns:
+        int: The value of the specified init value as an integer.
+    Raises:
+        ValueError: If the init value name is invalid.
+    """
+    if init_name not in self._INIT:
+      raise ValueError(f"Invalid init value name: {init_name}")
+    
+    return self._INIT[init_name]
+  
+  def write_init(self, init_name: str, value: int) -> None:
+    """
+    Writes a value to a specified init value.
+
+    Args:
+        init_name (str): The name of the init value to write to (e.g., 'A', 'B', 'C', 'D').
+        value (int): The value to write to the init value (must be a 64-bit unsigned integer).
+        
+    Raises:
+        ValueError: If the init value name is invalid.
+    """
+    if init_name not in self._INIT:
+      raise ValueError(f"Invalid init value name: {init_name}")
+    
+    if not (0 <= value < 2**self.INIT_REG_SIZE):
+      raise ValueError("Value must be a 64-bit unsigned integer.")
+    
+    self._INIT[init_name] = value  
+
+  def read_hash_state(self, hs_name: str) -> int:
+    """
+    Reads the value of a specified hash state register.
+
+    Args:
+        hs_name (str): The name of the hash state register to read (e.g., 'HS_A', 'HS_B', 'HS_C', 'HS_D').  
+    Returns:
+        int: The value of the specified hash state register as an integer.
+    Raises:
+        ValueError: If the hash state register name is invalid.
+    """
+    if hs_name not in self._HASH_STATE:
+      raise ValueError(f"Invalid hash state register name: {hs_name}")
+    
+    return self._HASH_STATE[hs_name]
+  
+  def write_hash_state(self, hs_name: str, value: int) -> None:
+    """
+    Writes a value to a specified hash state register.
+
+    Args:
+        hs_name (str): The name of the hash state register to write to (e.g., 'HS_A', 'HS_B', 'HS_C', 'HS_D').
+        value (int): The value to write to the hash state register (must be a 64-bit unsigned integer).
+        
+    Raises:
+        ValueError: If the hash state register name is invalid.
+    """
+    if hs_name not in self._HASH_STATE:
+      raise ValueError(f"Invalid hash state register name: {hs_name}")
+    
+    if not (0 <= value < 2**self.HASH_REG_SIZE):
+      raise ValueError("Value must be a 64-bit unsigned integer.")
+    
+    self._HASH_STATE[hs_name] = value

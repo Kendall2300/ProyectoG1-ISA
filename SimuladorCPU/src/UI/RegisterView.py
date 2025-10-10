@@ -39,22 +39,24 @@ class RegisterView(ttk.Frame):
     self._create_flag_box(self.inner_frame, "C (Carry)", 2)
     self._create_flag_box(self.inner_frame, "V (Overflow)", 3)
 
-    # # Special Registers
-    # self._create_register_box(self.inner_frame, "PC", registers.read_PC())
+    # Secure Vault Registers (accessed from Pipeline for security)
+    pipeline = self.main_app.pipeline
+    self._create_separator(self.inner_frame, "SECURE VAULT")
+    for i in range(pipeline.VAULT_NUM_KEYS):
+        value = pipeline.read_vault(f'KEY{i}')
+        self._create_vault_register_box(self.inner_frame, f"KEY{i}", value)
 
-    # # Secure Vault Registers
-    # for i in range(registers.VAULT_NUM_KEYS):
-    #     value = registers.read_vault(f'KEY{i}')
-    #     self._create_register_box(self.inner_frame, f"KEY{i}", value)
+    # Hash Init Values
+    self._create_separator(self.inner_frame, "HASH INIT VALUES") 
+    for reg in pipeline.HASH_VALUES:
+        value = pipeline.read_init(f'{reg}')
+        self._create_vault_register_box(self.inner_frame, f"INIT_{reg}", value)
 
-    # for reg in registers.HASH_VALUES:
-    #     value = registers.read_init(f'{reg}')
-    #     self._create_register_box(self.inner_frame, f"{reg}", value)
-
-    # # Hash State Registers
-    # for reg in registers.HASH_VALUES:
-    #     value = registers.read_hash_state(f'HS_{reg}')
-    #     self._create_register_box(self.inner_frame, f"HS {reg}", value)
+    # Hash State Registers
+    self._create_separator(self.inner_frame, "HASH STATE")
+    for reg in pipeline.HASH_VALUES:
+        value = pipeline.read_hash_state(f'HS_{reg}')
+        self._create_vault_register_box(self.inner_frame, f"HS_{reg}", value)
 
   def _create_register_box(self, parent: ttk.Frame, label_text: str, value: int) -> None:
     """
@@ -135,6 +137,35 @@ class RegisterView(ttk.Frame):
 
     self.value_labels[f"FLAG_{flag_bit}"] = flag_value_label
 
+  def _create_vault_register_box(self, parent: ttk.Frame, label_text: str, value: int) -> None:
+    """
+    Creates a box for a vault register (64-bit) with its label and value.
+
+    Args:
+        parent (ttk.Frame): The parent frame where the register box will be placed.
+        label_text (str): The label text for the register (e.g., 'KEY0', 'INIT_A', 'HS_A', etc.).
+        value (int): The value of the register as an integer.
+    """
+    # Horizontal box
+    hbox = ttk.Frame(parent, borderwidth=1, relief="solid", padding=(10, 4, 10, 4))
+    hbox.pack(pady=3, fill="x", padx=5)
+
+    # Register label
+    reg_label = ttk.Label(hbox, text=label_text, width=10, anchor="w", font=('TkDefaultFont', 9))
+    reg_label.pack(side="left", padx=(0, 10))
+
+    # Vertical separator
+    sep = ttk.Separator(hbox, orient="vertical")
+    sep.pack(side="left", fill="y", padx=5)
+
+    # Register value (64-bit hex)
+    value_hex = f"0x{value:016X}"
+    reg_value = ttk.Label(hbox, text=value_hex, width=18, anchor="w", 
+                         font=('Courier', 8), foreground="blue")
+    reg_value.pack(side="left", padx=(5, 0))
+
+    self.value_labels[label_text] = reg_value
+
   def _create_scrollable_frame(self, parent: ttk.Frame) -> None:
     """
     Creates a scrollable frame within the given parent frame.
@@ -189,25 +220,27 @@ class RegisterView(ttk.Frame):
             flag_label.config(text=flag_value,
                             foreground="red" if flag_value == "1" else "gray")
 
-      # # Secure Vault Registers
-      # for i in range(registers.VAULT_NUM_KEYS):
-      #     value = registers.read_vault(f'KEY{i}')
-      #     label = self.value_labels.get(f'KEY{i}')
-      #     if label:
-      #         value_hex = hex(int(value.to01(), 2))[2:]
-      #         label.config(text=f"{value_hex}")
+    # Secure Vault Registers (accessed from Pipeline for security)
+    pipeline = self.main_app.pipeline
+    for i in range(pipeline.VAULT_NUM_KEYS):
+        value = pipeline.read_vault(f'KEY{i}')
+        label = self.value_labels.get(f'KEY{i}')
+        if label:
+            value_hex = f"0x{value:016X}"
+            label.config(text=value_hex)
 
-      # for reg in registers.HASH_VALUES:
-      #     value = registers.read_init(f'{reg}')
-      #     label = self.value_labels.get(f'{reg}')
-      #     if label:
-      #         value_hex = hex(int(value.to01(), 2))[2:]
-      #         label.config(text=f"{value_hex}")
+    # Hash Init Values
+    for reg in pipeline.HASH_VALUES:
+        value = pipeline.read_init(f'{reg}')
+        label = self.value_labels.get(f'INIT_{reg}')
+        if label:
+            value_hex = f"0x{value:016X}"
+            label.config(text=value_hex)
 
-      # # Hash State Registers
-      # for reg in registers.HASH_VALUES:
-      #     value = registers.read_hash_state(f'HS_{reg}')
-      #     label = self.value_labels.get(f'HS {reg}')
-      #     if label:
-      #         value_hex = hex(int(value.to01(), 2))[2:]
-      #         label.config(text=f"{value_hex}")
+    # Hash State Registers
+    for reg in pipeline.HASH_VALUES:
+        value = pipeline.read_hash_state(f'HS_{reg}')
+        label = self.value_labels.get(f'HS_{reg}')
+        if label:
+            value_hex = f"0x{value:016X}"
+            label.config(text=value_hex)

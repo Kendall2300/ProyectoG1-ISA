@@ -6,7 +6,6 @@ from UI.MemoryView import MemoryView
 from UI.TextEditor import TextEditor
 from UI.Console import Console
 from CPU.Pipeline import Pipeline
-from Instruction import parse_instructions
 from assembler import assemble
 import os
 import shutil

@@ -111,9 +111,9 @@ Todas las instrucciones tienen **32 bits** de longitud.
 
 ### Formato I (Immediate)
 ```
-|31----26|25---21|20---16|15----------------0|
-| opcode |  rs1  |  rd   |     immediate     |
-| 6 bits | 5 bits| 5 bits|     16 bits       |
+|31----26|25---21|20---16|15---12|11-------------0|
+| opcode |  rs1  |  rd   | funct |   immediate    |
+| 6 bits | 5 bits| 5 bits|  4 bits |  12 bits    |
 ```
 **Uso:** Operaciones con inmediato, loads
 
@@ -127,17 +127,17 @@ Todas las instrucciones tienen **32 bits** de longitud.
 
 ### Formato B (Branch)
 ```
-|31----26|25---21|20---16|15----------------0|
-| opcode |  rs1  |  rs2  |      offset       |
-| 6 bits | 5 bits| 5 bits|   16 bits (signed)|
+|31----26|25---21|20---16|15---12|11-----------0|
+| opcode |  rs1  |  rs2  | funct |   offset     |
+| 6 bits | 5 bits| 5 bits|  4    | 12 bits      |
 ```
 **Uso:** Saltos condicionales (bits 15-14 codifican tipo de branch)
 
 ### Formato J (Jump)
 ```
 |31----26|25-----------------------0|
-| opcode |        address           |
-| 6 bits |        26 bits           |
+| opcode |        address           |
+| 6 bits |        26 bits           |
 ```
 **Uso:** Saltos incondicionales
 
@@ -182,41 +182,41 @@ Todas las instrucciones tienen **32 bits** de longitud.
 
 ### Instrucciones con Inmediato (Opcode 0x03)
 
-| Mnemónico | Formato | Sintaxis | Operación |
-|-----------|---------|----------|-----------|
-| ADDI | I | `ADDI rd, rs1, imm` | rd = rs1 + imm  |
-| SUBI | I | `SUBI rd, rs1, imm` | rd = rs1 - imm  |
-| ANDI | I | `ANDI rd, rs1, imm` | rd = rs1 & imm  |
-| ORI  | I | `ORI rd, rs1, imm`  | rd = rs1 \| imm |
-| XORI | I | `XORI rd, rs1, imm` | rd = rs1 ^ imm  |
-| SLLI | I | `SLLI rd, rs1, imm` | rd = rs1 << imm |
-| LUI  | I | `LUI rd, imm`       | rd = imm << 48  |
+| Mnemónico | Formato | Sintaxis | Operación | Funct |
+|-----------|---------|----------|-----------|-------|
+| ADDI | I | `ADDI rd, rs1, imm` | rd = rs1 + imm  | 0x00 |
+| SUBI | I | `SUBI rd, rs1, imm` | rd = rs1 - imm  | 0x01 |
+| ANDI | I | `ANDI rd, rs1, imm` | rd = rs1 & imm  | 0x02 |
+| ORI  | I | `ORI rd, rs1, imm`  | rd = rs1 \| imm | 0x03 |
+| XORI | I | `XORI rd, rs1, imm` | rd = rs1 ^ imm  | 0x04 |
+| SLLI | I | `SLLI rd, rs1, imm` | rd = rs1 << imm | 0x05 |
+| LUI  | I | `LUI rd, imm`       | rd = imm << 48  | 0x06 |
 
 ### Instrucciones de Memoria
 
-| Mnemónico | Opcode | Formato | Sintaxis | Operación |
-|-----------|--------|---------|----------|-----------|
-| LD | 0x04 | I | `LD rd, offset(rs1)`  | rd = MEM[rs1 + offset]  |
-| SD | 0x05 | S | `SD rs2, offset(rs1)` | MEM[rs1 + offset] = rs2 |
+| Mnemónico | Opcode | Formato | Sintaxis | Operación | Opcode |
+|-----------|--------|---------|----------|-----------|-------|
+| LD | 0x04 | I | `LD rd, offset(rs1)`  | rd = MEM[rs1 + offset]  | 0x04 |
+| SD | 0x05 | S | `SD rs2, offset(rs1)` | MEM[rs1 + offset] = rs2 | 0x05 |
 
 ### Instrucciones de Control de Flujo
 
 #### Branches (Opcode 0x06)
 
-| Mnemónico | Condición | Sintaxis | Operación |
-|-----------|-----------|----------|-----------|
-| BEQ | rs1 == rs2 | `BEQ rs1, rs2, offset` | if (rs1 == rs2) PC += offset |
-| BNE | rs1 != rs2 | `BNE rs1, rs2, offset` | if (rs1 != rs2) PC += offset |
-| BLT | rs1 < rs2  | `BLT rs1, rs2, offset` | if (rs1 < rs2) PC += offset  |
-| BGE | rs1 >= rs2 | `BGE rs1, rs2, offset` | if (rs1 >= rs2) PC += offset |
+| Mnemónico | Condición | Sintaxis | Operación | Funct |
+|-----------|-----------|----------|-----------|-------|
+| BEQ | rs1 == rs2 | `BEQ rs1, rs2, offset` | if (rs1 == rs2) PC += offset | 0x00 |
+| BNE | rs1 != rs2 | `BNE rs1, rs2, offset` | if (rs1 != rs2) PC += offset | 0x01 |
+| BLT | rs1 < rs2  | `BLT rs1, rs2, offset` | if (rs1 < rs2) PC += offset  | 0x02 |
+| BGE | rs1 >= rs2 | `BGE rs1, rs2, offset` | if (rs1 >= rs2) PC += offset | 0x03 |
 
 #### Jumps
 
-| Mnemónico | Opcode | Sintaxis | Operación |
-|-----------|--------|----------|-----------|
-| J   | 0x07 | `J addr`       | PC = addr            |
-| JAL | 0x07 | `JAL rd, addr` | rd = PC+4; PC = addr |
-| JR  | 0x08 | `JR rs1`       | PC = rs1             |
+| Mnemónico | Opcode | Sintaxis | Operación | Opcode |
+|-----------|--------|----------|-----------|-------|
+| J   | 0x07 | `J addr`       | PC = addr            | 0x07 |
+| JAL | 0x07 | `JAL rd, addr` | rd = PC+4; PC = addr | 0x08 |
+| JR  | 0x08 | `JR rs1`       | PC = rs1             | 0x09 |
 
 ### Instrucciones de Sistema (Opcode 0x3F)
 

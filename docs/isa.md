@@ -231,7 +231,7 @@ Todas las instrucciones tienen **32 bits** de longitud.
 
 ### Operaciones con Bóveda (Opcode 0x10)
 
-#### VSTORE - Store to Vault
+#### VSTORE - Store to Vault (0x00)
 ```assembly
 VSTORE vidx, rs1
 ```
@@ -249,7 +249,7 @@ LUI R2, 0x6745
 VSTORE 4, R2        # Guarda valor inicial A en INIT[0]
 ```
 
-#### VINIT - Initialize Hash State
+#### VINIT - Initialize Hash State (0x01)
 ```assembly
 VINIT vidx
 ```
@@ -264,7 +264,7 @@ VINIT 0             # Inicializa estado de hash con INIT[0-3]
 
 ### Operaciones de Hash ToyMDMA (Opcode 0x11)
 
-#### HBLOCK - Hash Block Processing
+#### HBLOCK - Hash Block Processing (0x00)
 ```assembly
 HBLOCK rs1
 ```
@@ -289,7 +289,7 @@ HBLOCK R1           # Procesar con ToyMDMA (1 ciclo)
 ADDI R10, R10, 8    # Avanzar puntero
 ```
 
-#### HMULK - Hash Multiply by Constant
+#### HMULK - Hash Multiply by Constant (0x01)
 ```assembly
 HMULK rd, rs1
 ```
@@ -297,7 +297,7 @@ HMULK rd, rs1
 
 **Justificación:** Constante áurea fija permite implementación eficiente con sumadores.
 
-#### HMODP - Hash Modulo Prime
+#### HMODP - Hash Modulo Prime (0x02)
 ```assembly
 HMODP rd, rs1
 ```
@@ -305,7 +305,7 @@ HMODP rd, rs1
 
 **Justificación:** Primo fijo permite optimización en hardware.
 
-#### HFINAL - Finalize Hash
+#### HFINAL - Finalize Hash (0x03)
 ```assembly
 HFINAL rd
 ```
@@ -324,7 +324,7 @@ HFINAL R4           # Hash en R4, R5, R6, R7
 
 ### Operaciones de Firma Digital (Opcode 0x12)
 
-#### VSIGN - Digital Signature Generation
+#### VSIGN - Digital Signature Generation (0x00)
 ```assembly
 VSIGN rd, vidx
 ```
@@ -342,7 +342,7 @@ VSIGN rd, vidx
 VSIGN R8, 0         # Firma en R8-R11 usando VAULT[0]
 ```
 
-#### VVERIF - Signature Verification
+#### VVERIF - Signature Verification (0x01)
 ```assembly
 VVERIF rs, vidx
 ```

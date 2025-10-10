@@ -10,12 +10,11 @@ class RegisterFile:
 
   def __init__(self):
     # General purpose registers R0-R31
-    self.regs = list(range(self.GPR_NUM_REGS))                                                               # GPR registers
+    self.regs = list(range(self.GPR_NUM_REGS))   
     self.regs[0] = 0            
 
     # Special registers
-    # self._PC = bitarray('0' * self.PC_REG_SIZE)                                                            # Program Counter
-    self._FLAGS = 0                                                                                          # Flags register (8-bit integer)
+    self._FLAGS = 0                                                                                         
 
   def read(self, reg_name: str):                                                 
     """

@@ -106,13 +106,13 @@ class Instruction:
                 self.vidx = 0
                 self.rd = tokens[1].strip()
             elif self.op == "VSIGN":
-                # VSIGN rd, vidx
+                # VSIGN rd, vidx - En formato V: rd=rd, vidx=vidx 
                 self.rd = tokens[1].strip(',')
                 self.vidx = int(tokens[2].strip())
             elif self.op == "VVERIF":
-                # VVERIF vidx, rd
-                self.vidx = int(tokens[1].strip(','))
-                self.rd = tokens[2].strip()
+                # VVERIF rd, vidx - En formato V: rd contiene firma y recibe resultado, vidx es clave vault
+                self.rd = tokens[1].strip(',')
+                self.vidx = int(tokens[2].strip())
 
         else:
             raise ValueError(f"Unknown instruction: {self.op}")

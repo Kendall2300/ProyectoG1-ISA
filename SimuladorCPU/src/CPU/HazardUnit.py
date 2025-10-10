@@ -10,7 +10,17 @@ class HazardUnit:
         self.correct_predictions = 0
         self.total_branches = 0
 
-    def detect_hazard(self, current_instr: Instruction, previous_instr: Instruction):
+    def detect_hazard(self, current_instr: Instruction, previous_instr: Instruction) -> str | None:
+        """
+        Detects data hazards (RAW) between the current and previous instructions.
+
+        Args:
+            current_instr (Instruction): The instruction in the current pipeline stage.
+            previous_instr (Instruction): The instruction in the previous pipeline stage.
+
+        Returns:
+            str | None: The type of hazard detected ('RAW', 'WAW', 'WAR') or None if no hazard.
+        """
         if not current_instr or not previous_instr:
             return None
 
@@ -24,7 +34,17 @@ class HazardUnit:
             return 'RAW'
         return None
 
-    def detect_hazard_waw_war(self, instr1: Instruction, instr2: Instruction):
+    def detect_hazard_waw_war(self, instr1: Instruction, instr2: Instruction) -> str | None:
+        """
+        Detects WAW and WAR hazards between two instructions.
+
+        Args:
+            instr1 (Instruction): The first instruction.
+            instr2 (Instruction): The second instruction.
+
+        Returns:
+            str | None: The type of hazard detected ('WAW', 'WAR') or None if no hazard.
+        """
         if not instr1 or not instr2:
             return None
 
@@ -42,9 +62,13 @@ class HazardUnit:
             return 'WAR'
         return None
 
-    def update_control_hazard(self, actual_taken, predicted_taken):
+    def update_control_hazard(self, actual_taken: bool, predicted_taken: bool) -> None:
         """
         Updates branch prediction accuracy metrics.
+
+        Args:
+            actual_taken (bool): Whether the branch was actually taken.
+            predicted_taken (bool): Whether the branch was predicted to be taken.   
         """
         self.total_branches += 1
         if actual_taken == predicted_taken:
@@ -52,7 +76,10 @@ class HazardUnit:
         else:
             self.control += 1
 
-    def get_branch_accuracy(self):
+    def get_branch_accuracy(self) -> float:
+        """
+        Returns the branch prediction accuracy as a percentage.
+        """
         if self.total_branches == 0:
             return 0.0
         return 100.0 * self.correct_predictions / self.total_branches

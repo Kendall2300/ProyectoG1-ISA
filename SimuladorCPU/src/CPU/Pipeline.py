@@ -10,7 +10,6 @@ class Pipeline:
     self.memory = Memory()
     self.hazard_unit = HazardUnit()
 
-    # Secure Vault registers - moved from RegisterFile for security
     # Constants for Vault registers
     self.VAULT_NUM_KEYS = 4                    # Number of keys in the vault
     self.SECURE_VAULT_REG_SIZE = 64            # Size of secure vault registers in bits
@@ -18,13 +17,12 @@ class Pipeline:
     self.HASH_VALUES = ['A', 'B', 'C', 'D']   # Initial hash values for the hash function
     self.HASH_REG_SIZE = 64                    # Size of hash function registers in bits
     
-    # Secure Vault registers (using integers instead of bitarray for simplicity)
-    self._VAULT = {f'KEY{i}': 0 for i in range(self.VAULT_NUM_KEYS)}                                        # Vault register
-    self._INIT = {f'{value}': 0 for value in self.HASH_VALUES}                                              # Hash init values registers
+    # Secure Vault registers
+    self._VAULT = {f'KEY{i}': 0 for i in range(self.VAULT_NUM_KEYS)}                                        
+    self._INIT = {f'{value}': 0 for value in self.HASH_VALUES}                                              
 
     # Internal Hash State registers
-    self._HASH_STATE = {f'HS_{value}': 0 for value in self.HASH_VALUES}                                     # Hash state registers
-    
+    self._HASH_STATE = {f'HS_{value}': 0 for value in self.HASH_VALUES}                                  
     # Initialize with some demo values for testing
     self._VAULT['KEY0'] = 0x1234567890ABCDEF
     self._VAULT['KEY1'] = 0xFEDCBA0987654321
@@ -60,7 +58,7 @@ class Pipeline:
         "Branches": 0,
     }
     self.execution_history = []
-    self.cycle_logs = []  # Logs para el ciclo actual
+    self.cycle_logs = []  
     self.on_cycle = None
 
   def load_instructions(self, bin_path: str) -> None:
@@ -178,11 +176,10 @@ class Pipeline:
       elif opcode == 0x06:  # B-type con nuevo formato
         decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
         decoded_instr['rs2'] = (raw_instr >> 16) & 0x1F
-        decoded_instr['funct'] = (raw_instr >> 12) & 0xF  # Campo funct de 4 bits
-        decoded_instr['imm'] = raw_instr & 0xFFF  # Offset de 12 bits
+        decoded_instr['funct'] = (raw_instr >> 12) & 0xF
+        decoded_instr['imm'] = raw_instr & 0xFFF  # Offset (12 bits)
         decoded_instr['instruction_type'] = 'B'
         
-        # Determinar la instrucción específica usando el campo funct
         funct = decoded_instr['funct']
         if funct == 0x00: decoded_instr['mnemonic'] = 'BEQ'
         elif funct == 0x01: decoded_instr['mnemonic'] = 'BNE'
@@ -205,25 +202,23 @@ class Pipeline:
         decoded_instr['instruction_type'] = 'J'
         decoded_instr['mnemonic'] = 'JR'
 
-      elif opcode == 0x10:  # Vault operations con nuevo formato V
+      elif opcode == 0x10:  # Vault operations 
         decoded_instr['vidx'] = (raw_instr >> 21) & 0x1F  # vidx (5 bits)
         decoded_instr['rd'] = (raw_instr >> 16) & 0x1F    # rd (5 bits)
         decoded_instr['funct'] = (raw_instr >> 11) & 0x1F # funct (5 bits)
         decoded_instr['instruction_type'] = 'V'
         
-        # Determinar instrucción por campo funct
         funct = decoded_instr['funct']
         if funct == 0x00: decoded_instr['mnemonic'] = 'VSTORE'
         elif funct == 0x01: decoded_instr['mnemonic'] = 'VINIT'
         else: decoded_instr['mnemonic'] = 'UNKNOWN_VAULT'
 
-      elif opcode == 0x11:  # Hash operations con nuevo formato V
+      elif opcode == 0x11:  # Hash operations 
         decoded_instr['vidx'] = (raw_instr >> 21) & 0x1F  # vidx (5 bits)
         decoded_instr['rd'] = (raw_instr >> 16) & 0x1F    # rd (5 bits)
         decoded_instr['funct'] = (raw_instr >> 11) & 0x1F # funct (5 bits)
         decoded_instr['instruction_type'] = 'V'
         
-        # Determinar instrucción por campo funct
         funct = decoded_instr['funct']
         if funct == 0x00: decoded_instr['mnemonic'] = 'HBLOCK'
         elif funct == 0x01: decoded_instr['mnemonic'] = 'HMULK'
@@ -231,13 +226,12 @@ class Pipeline:
         elif funct == 0x03: decoded_instr['mnemonic'] = 'HFINAL'
         else: decoded_instr['mnemonic'] = 'UNKNOWN_HASH'
 
-      elif opcode == 0x12:  # Signature operations con nuevo formato V
+      elif opcode == 0x12:  # Signature operations 
         decoded_instr['vidx'] = (raw_instr >> 21) & 0x1F  # vidx (5 bits)
         decoded_instr['rd'] = (raw_instr >> 16) & 0x1F    # rd (5 bits)
         decoded_instr['funct'] = (raw_instr >> 11) & 0x1F # funct (5 bits)
         decoded_instr['instruction_type'] = 'V'
         
-        # Determinar instrucción por campo funct
         funct = decoded_instr['funct']
         if funct == 0x00: decoded_instr['mnemonic'] = 'VSIGN'
         elif funct == 0x01: decoded_instr['mnemonic'] = 'VVERIF'
@@ -285,9 +279,18 @@ class Pipeline:
     
     # Default: read from register file
     return self.registers.read(f"R{reg_num}")
-  
-  def rol64(self, x, n):
-    """Rotate left 64-bit integer by n positions"""
+
+  def rol64(self, x: int, n: int) -> int:
+    """
+    Rotate left 64-bit integer by n positions
+    
+    Args:
+        x (int): The 64-bit integer to rotate.
+        n (int): Number of positions to rotate.
+
+    Returns:
+        int: The rotated 64-bit integer.
+    """
     x &= 0xFFFFFFFFFFFFFFFF
     n = n % 64  # Ensure n is within valid range
     return ((x << n) | (x >> (64 - n))) & 0xFFFFFFFFFFFFFFFF
@@ -395,7 +398,7 @@ class Pipeline:
       elif mnemonic == "J":
         self.PC = instr['imm']
       elif mnemonic == "JAL":
-        instr['result'] = self.PC + 4  # Store return address
+        instr['result'] = self.PC + 4
         self.PC = instr['imm']
       elif mnemonic == "JR":
         self.PC = instr['rs1_val']
@@ -416,54 +419,52 @@ class Pipeline:
 
       # Hash Operations
       elif mnemonic == "HBLOCK":
-        # HBLOCK rs1 - En formato V: rs1 está en campo 'rd'
+        # HBLOCK rs1
         src_reg = instr['rd'] & 0x1F
         block = self.registers.read(f"R{src_reg}") & 0xFFFFFFFFFFFFFFFF
         
-        # Estado actual (valores originales)
+        # Hash current state (original values)
         A = self._HASH_STATE['HS_A']
         B = self._HASH_STATE['HS_B'] 
         C = self._HASH_STATE['HS_C']
         D = self._HASH_STATE['HS_D']
         
-        # Funciones auxiliares ToyMDMA
+        # ToyMDMA auxiliary functions
         f = (A & B) | ((~A) & C)
         g = (B & C) | ((~B) & D)
         h = A ^ B ^ C ^ D
         mul = (block * 0x9e3779b97f4a7c15) & 0xFFFFFFFFFFFFFFFF
         
-        # Actualización del estado (usar valores originales)
+        # Update hash state
         new_A = (self.rol64((A + f + mul) & 0xFFFFFFFFFFFFFFFF, 7) + B) & 0xFFFFFFFFFFFFFFFF
         new_B = (self.rol64((B + g + block) & 0xFFFFFFFFFFFFFFFF, 11) + (C * 3)) & 0xFFFFFFFFFFFFFFFF
         new_C = (self.rol64((C + h + mul) & 0xFFFFFFFFFFFFFFFF, 17) + (D % 0xFFFFFFFB)) & 0xFFFFFFFFFFFFFFFF
         new_D = (self.rol64((D + A + block) & 0xFFFFFFFFFFFFFFFF, 19) ^ ((f * 5) & 0xFFFFFFFFFFFFFFFF)) & 0xFFFFFFFFFFFFFFFF
-        
-        # Aplicar nuevos valores
+
+        # Apply new state
         self._HASH_STATE['HS_A'] = new_A
         self._HASH_STATE['HS_B'] = new_B
         self._HASH_STATE['HS_C'] = new_C
         self._HASH_STATE['HS_D'] = new_D
         
       elif mnemonic == "HMULK":
-        # HMULK rd, rs1 - En formato V: rd=destino en campo 'rd', rs1=fuente en campo 'vidx'
-        # Leer valor del registro fuente (que está en vidx)
+        # HMULK rd, rs1
         src_reg = instr['vidx'] & 0x1F
         val = self.registers.read(f"R{src_reg}") & 0xFFFFFFFFFFFFFFFF
         CONST = 0x9e3779b97f4a7c15
         instr['result'] = (val * CONST) & 0xFFFFFFFFFFFFFFFF
         
       elif mnemonic == "HMODP":
-        # HMODP rd, rs1 - En formato V: rd=destino en campo 'rd', rs1=fuente en campo 'vidx'
-        # Leer valor del registro fuente (que está en vidx)
+        # HMODP rd, rs1
         src_reg = instr['vidx'] & 0x1F
         val = self.registers.read(f"R{src_reg}") & 0xFFFFFFFFFFFFFFFF
-        CONST = 0xFFFFFFFB  # Primo cercano a 2^32
+        CONST = 0xFFFFFFFB
         instr['result'] = val % CONST
         
       elif mnemonic == "HFINAL":
-        # HFINAL rd - Extrae hash de 256 bits a 4 registros consecutivos
+        # HFINAL rd
         rd = instr['rd']
-        if rd != 0 and rd <= 28:  # Asegurar que hay espacio para 4 registros
+        if rd != 0 and rd <= 28:  # Ensure rd, rd+1, rd+2, rd+3 are valid
           self.registers.write(f"R{rd}", self._HASH_STATE['HS_A'] & 0xFFFFFFFF)
           self.registers.write(f"R{rd+1}", self._HASH_STATE['HS_B'] & 0xFFFFFFFF)
           self.registers.write(f"R{rd+2}", self._HASH_STATE['HS_C'] & 0xFFFFFFFF) 
@@ -471,6 +472,7 @@ class Pipeline:
 
       # Signature Operations
       elif mnemonic == "VSIGN":
+        # VSIGN rd, vidx
         vidx = instr['vidx'] & 0x1F
         if 0 <= vidx < self.VAULT_NUM_KEYS:
           k = self._VAULT[f'KEY{vidx}']
@@ -480,16 +482,23 @@ class Pipeline:
           d = self._HASH_STATE['HS_D'] ^ k
           instr['result'] = (a + b + c + d) & 0xFFFFFFFFFFFFFFFF
       elif mnemonic == "VVERIF":
+        # VVERIF rs, vidx
         vidx = instr['vidx'] & 0x1F
+        rd_reg = instr['rd'] & 0x1F
         if 0 <= vidx < self.VAULT_NUM_KEYS:
           k = self._VAULT[f'KEY{vidx}']
-          expected = instr['rd_val'] & 0xFFFFFFFFFFFFFFFF
+          # Read the value from the rd register (signature to verify)
+          expected = self.registers.read(f"R{rd_reg}") & 0xFFFFFFFFFFFFFFFF
+          # Calculate signature using the same formula as VSIGN
           a = self._HASH_STATE['HS_A'] ^ k
           b = self._HASH_STATE['HS_B'] ^ k
           c = self._HASH_STATE['HS_C'] ^ k
           d = self._HASH_STATE['HS_D'] ^ k
           computed = (a + b + c + d) & 0xFFFFFFFFFFFFFFFF
+          # Write verification result (1=valid, 0=invalid) to the same register
           instr['result'] = 1 if computed == expected else 0
+        else:
+          instr['result'] = 0  # Invalid index
 
       # System Operations
       elif mnemonic == "HALT":
@@ -618,10 +627,10 @@ class Pipeline:
             formatted = f"{mnemonic} {instr['imm']}"
             
         elif instr['instruction_type'] == 'SYS':
-          formatted = mnemonic  # HALT, NOP no tienen operandos
+          formatted = mnemonic
           
         else:
-          formatted = mnemonic  # Fallback
+          formatted = mnemonic 
           
         return f"{formatted} (0x{instr['raw']:08X})"
       else:
@@ -635,7 +644,7 @@ class Pipeline:
         "EX": format_instr_for_display(self.EX_MEM["instr"]),
         "MEM": format_instr_for_display(self.MEM_WB["instr"]),
         "WB": format_instr_for_display(self.MEM_WB.get("old_instr")),
-        "logs": self.cycle_logs.copy()  # Copia de los logs de este ciclo
+        "logs": self.cycle_logs.copy()
     }
     self.execution_history.append(cycle_info)
 

@@ -28,9 +28,19 @@ class RegisterView(ttk.Frame):
         value = registers.read(f'R{i}')
         self._create_register_box(self.inner_frame, f"R{i}", value)
 
+    # Special Registers - FLAGS
+    self._create_separator(self.inner_frame, "FLAGS REGISTER")
+    flags_value = registers.read_flags()
+    self._create_register_box(self.inner_frame, "FLAGS", flags_value)
+    
+    # Individual flags
+    self._create_flag_box(self.inner_frame, "Z (Zero)", 0)
+    self._create_flag_box(self.inner_frame, "N (Negative)", 1)
+    self._create_flag_box(self.inner_frame, "C (Carry)", 2)
+    self._create_flag_box(self.inner_frame, "V (Overflow)", 3)
+
     # # Special Registers
     # self._create_register_box(self.inner_frame, "PC", registers.read_PC())
-    # self._create_register_box(self.inner_frame, "FLAGS", registers.read_FLAGS())
 
     # # Secure Vault Registers
     # for i in range(registers.VAULT_NUM_KEYS):
@@ -69,10 +79,61 @@ class RegisterView(ttk.Frame):
 
     # Register value
     value_hex = hex(value)[2:]
-    reg_value = ttk.Label(hbox, text=f"{value_hex}", width=10, anchor="w")
+    reg_value = ttk.Label(hbox, text=f"{value_hex}", width=15, anchor="w")
     reg_value.pack(side="left", padx=(5, 0))
 
     self.value_labels[label_text] = reg_value
+
+  def _create_separator(self, parent: ttk.Frame, label_text: str) -> None:
+    """
+    Creates a separator with label for grouping registers.
+    
+    Args:
+        parent (ttk.Frame): The parent frame where the separator will be placed.
+        label_text (str): The text for the separator label.
+    """
+    # Separator frame
+    sep_frame = ttk.Frame(parent, padding=(5, 10, 5, 5))
+    sep_frame.pack(fill="x", pady=(10, 5))
+    
+    # Label
+    sep_label = ttk.Label(sep_frame, text=label_text, font=('TkDefaultFont', 9, 'bold'))
+    sep_label.pack()
+    
+    # Horizontal line
+    sep_line = ttk.Separator(sep_frame, orient="horizontal")
+    sep_line.pack(fill="x", pady=(5, 0))
+
+  def _create_flag_box(self, parent: ttk.Frame, label_text: str, flag_bit: int) -> None:
+    """
+    Creates a box for a single flag with its label and value.
+
+    Args:
+        parent (ttk.Frame): The parent frame where the flag box will be placed.
+        label_text (str): The label text for the flag (e.g., 'Z (Zero)', 'N (Negative)', etc.).
+        flag_bit (int): The bit position of the flag (0-7).
+    """
+    # Horizontal box
+    hbox = ttk.Frame(parent, borderwidth=1, relief="solid", padding=(10, 3, 10, 3))
+    hbox.pack(pady=2, fill="x", padx=5)
+
+    # Flag label
+    flag_label = ttk.Label(hbox, text=label_text, width=12, anchor="w", font=('TkDefaultFont', 8))
+    flag_label.pack(side="left", padx=(0, 10))
+
+    # Vertical separator
+    sep = ttk.Separator(hbox, orient="vertical")
+    sep.pack(side="left", fill="y", padx=5)
+
+    # Flag value
+    registers = self.main_app.pipeline.registers
+    flag_value = "1" if registers.get_flag(flag_bit) else "0"
+    flag_value_label = ttk.Label(hbox, text=flag_value, width=3, anchor="center", 
+                                font=('TkDefaultFont', 8, 'bold'),
+                                foreground="red" if flag_value == "1" else "gray")
+    flag_value_label.pack(side="left", padx=(5, 0))
+
+    self.value_labels[f"FLAG_{flag_bit}"] = flag_value_label
 
   def _create_scrollable_frame(self, parent: ttk.Frame) -> None:
     """
@@ -112,18 +173,21 @@ class RegisterView(ttk.Frame):
             value_hex = hex(value)[2:]
             label.config(text=f"{value_hex}")
 
-      # # Special Registers
-      # pc_value = registers.read_PC()
-      # pc_label = self.value_labels.get("PC")
-      # if pc_label:
-      #     pc_hex = hex(int(pc_value.to01(), 2))[2:]
-      #     pc_label.config(text=f"{pc_hex}")
+    # FLAGS Register
+    flags_value = registers.read_flags()
+    flags_label = self.value_labels.get("FLAGS")
+    if flags_label:
+        flags_hex = hex(flags_value)[2:].upper().zfill(2)
+        flags_bin = format(flags_value, '08b')
+        flags_label.config(text=f"0x{flags_hex} ({flags_bin})")
 
-      # flags_value = registers.read_FLAGS()
-      # flags_label = self.value_labels.get("FLAGS")
-      # if flags_label:
-      #     flags_hex = hex(int(flags_value.to01(), 2))[2:]
-      #     flags_label.config(text=f"{flags_hex}")
+    # Individual Flags
+    for flag_bit in range(4):  # Only show flags 0-3 (Z, N, C, V)
+        flag_label = self.value_labels.get(f"FLAG_{flag_bit}")
+        if flag_label:
+            flag_value = "1" if registers.get_flag(flag_bit) else "0"
+            flag_label.config(text=flag_value,
+                            foreground="red" if flag_value == "1" else "gray")
 
       # # Secure Vault Registers
       # for i in range(registers.VAULT_NUM_KEYS):

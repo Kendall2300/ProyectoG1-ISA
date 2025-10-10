@@ -27,13 +27,13 @@ class TextEditor(ttk.Frame):
     load_button = ttk.Button(toolbar, text="Load File", command=self.on_load_callback)
     load_button.pack(side="left", pady=10, padx=10)
 
-    # Run Button
-    run_button = ttk.Button(toolbar, text="Run", command=self.on_run_callback)
-    run_button.pack(side="left", pady=10)
+    # Run Button (initially disabled)
+    self.run_button = ttk.Button(toolbar, text="Run", command=self.on_run_callback, state="disabled")
+    self.run_button.pack(side="left", pady=10)
 
     # Compile Button
-    compile_button = ttk.Button(toolbar, text="Compile", command=self.on_compile_callback)
-    compile_button.pack(side="left", pady=10, padx=10)
+    self.compile_button = ttk.Button(toolbar, text="Compile", command=self.on_compile_callback)
+    self.compile_button.pack(side="left", pady=10, padx=10)
 
     # Main Container
     main_container = ttk.Frame(self)
@@ -58,11 +58,19 @@ class TextEditor(ttk.Frame):
     """
     Binds necessary events to the text widget for updating line numbers.
     """
-    self.text.bind("<KeyRelease>", self.update_linenumbers)
+    self.text.bind("<KeyRelease>", self._on_text_changed)
     self.text.bind("<MouseWheel>", self.update_linenumbers)
     self.text.bind("<Configure>", self.update_linenumbers)
     self.text.config(yscrollcommand=self._on_text_scroll)
     self.linenum.bind("<MouseWheel>", self._on_linenum_scroll)
+    
+  def _on_text_changed(self, event: tk.Event = None) -> None:
+    """
+    Handles text changes and disables Run button when code is modified.
+    """
+    self.update_linenumbers(event)
+    # Disable Run button when text is modified (needs recompilation)
+    self.disable_run_button()
 
   def _on_text_scroll(self, *args) -> None:
     """
@@ -111,3 +119,15 @@ class TextEditor(ttk.Frame):
         str: The code as a string.
     """
     return self.text.get("1.0", "end-1c")
+  
+  def enable_run_button(self) -> None:
+    """
+    Enables the Run button.
+    """
+    self.run_button.config(state="normal")
+  
+  def disable_run_button(self) -> None:
+    """
+    Disables the Run button.
+    """
+    self.run_button.config(state="disabled")

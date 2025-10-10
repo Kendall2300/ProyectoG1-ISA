@@ -1,7 +1,6 @@
 from CPU.RegisterFile import RegisterFile
 from CPU.Memory import Memory
 from CPU.HazardUnit import HazardUnit
-from Instruction import Instruction, parse_instructions
 
 
 class Pipeline:
@@ -15,7 +14,7 @@ class Pipeline:
     self.console = None
 
     # Instructions and Labels
-    self.instructions: list[Instruction] = []
+    self.instructions: list[int] = []
     self.labels: dict[str, int] = {}
 
     # Pipeline registers
@@ -38,42 +37,28 @@ class Pipeline:
         "Branches": 0,
     }
     self.execution_history = []
+    self.cycle_logs = []  # Logs para el ciclo actual
     self.on_cycle = None
+
+  def load_instructions(self, bin_path: str) -> None:
+    """
+    Loads a binary file into the instruction memory.
+    
+    Args:
+        bin_path (str): Path to the binary file.
+    """
+    with open(bin_path, 'r') as f:
+      lines = f.readlines()
+    self.instructions = [int(line.strip(), 2) for line in lines if line.strip()]
 
   def _log(self, message: str) -> None:
     """
-    Logs a message to the UI console if available, otherwise prints to stdout.
+    Logs a message to the UI console if available, otherwise prints to terminal.
     """
     if self.console:
       self.console.log(message)
     else:
       print(message)
-
-  def map_labels(self, lines: str) -> dict[str, int]:
-    """
-    Maps labels to their corresponding instruction indices.
-    
-    Args:
-        lines (str): List of instruction lines.
-
-    Returns:
-        dict[str, int]: A dictionary mapping labels to instruction indices.
-    """
-    labels = {}
-    instr_list = []
-    idx = 0
-    for line in lines:
-      line = line.strip()
-      if not line or line.startswith('#'):  # Ignore empty lines and comments
-        continue
-      if line.endswith(':'):                # Add label
-        label = line[:-1].strip()
-        labels[label] = idx
-      else:                                 # Add instruction
-        instr_list.append(line)
-        idx += 1
-    self.instructions = parse_instructions(instr_list)
-    return labels
   
   def fetch(self) -> None:
     """ 
@@ -89,57 +74,140 @@ class Pipeline:
     """ 
     Decodes the instruction in the ID stage.
     """
-    instr = self.IF_ID["instr"]
-    if instr:
-      # Read register values with forwarding
-      if instr.rs1:
-        instr.rs1_val = self._get_register_value_with_forwarding(instr.rs1)
-
-      if instr.rs2:
-        instr.rs2_val = self._get_register_value_with_forwarding(instr.rs2)
-
-      # Only check for load-use hazards (most critical)
-      if (self.ID_EX["instr"] and self.ID_EX["instr"].op == "LD" and 
-          ((instr.rs1 and self.ID_EX["instr"].rd == instr.rs1) or 
-           (instr.rs2 and self.ID_EX["instr"].rd == instr.rs2))):
-        self._log(f"[HAZARD] Load-use hazard: {instr} depends on load {self.ID_EX['instr']} - stalling")
-        self.ID_EX["instr"] = None
-        return
+    raw_instr = self.IF_ID["instr"]
+    if raw_instr is not None:
+      # Create decoded instruction structure
+      decoded_instr = {
+        'raw': raw_instr,
+        'opcode': (raw_instr >> 26) & 0x3F,
+        'rs1': 0,
+        'rs2': 0, 
+        'rd': 0,
+        'imm': 0,
+        'rs1_val': 0,
+        'rs2_val': 0,
+        'result': None,
+        'address': None,
+        'loaded_value': None,
+        'instruction_type': None,
+        'mnemonic': 'UNKNOWN'
+      }
+      
+      opcode = decoded_instr['opcode']
+      
+      # Decode based on opcode
+      if opcode in {0x00, 0x01, 0x02}:  # R-type
+        decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
+        decoded_instr['rs2'] = (raw_instr >> 16) & 0x1F  
+        decoded_instr['rd'] = (raw_instr >> 11) & 0x1F
+        decoded_instr['instruction_type'] = 'R'
         
-      # Check for other hazards (for metrics only, don't stall)
-      if self.EX_MEM["instr"]:
-        hazard = self.hazard_unit.detect_hazard_waw_war(instr, self.EX_MEM["instr"])
-        if hazard == "WAW":
-          self.metrics["WAW"] += 1
-        elif hazard == "WAR":
-          self.metrics["WAR"] += 1
-          
-      self.ID_EX["instr"] = instr
+        # Determine specific R-type operation from func field
+        func = raw_instr & 0x3F
+        if opcode == 0x00:  # ALU operations
+          if func == 0x00: decoded_instr['mnemonic'] = 'ADD'
+          elif func == 0x01: decoded_instr['mnemonic'] = 'SUB'
+          elif func == 0x02: decoded_instr['mnemonic'] = 'MUL'
+          elif func == 0x03: decoded_instr['mnemonic'] = 'DIV'
+          elif func == 0x04: decoded_instr['mnemonic'] = 'MOD'
+        elif opcode == 0x01:  # Logic operations
+          if func == 0x00: decoded_instr['mnemonic'] = 'AND'
+          elif func == 0x01: decoded_instr['mnemonic'] = 'OR'
+          elif func == 0x02: decoded_instr['mnemonic'] = 'XOR'
+          elif func == 0x03: decoded_instr['mnemonic'] = 'NOT'
+        elif opcode == 0x02:  # Shift operations
+          if func == 0x00: decoded_instr['mnemonic'] = 'SLL'
+          elif func == 0x01: decoded_instr['mnemonic'] = 'SRL'
+          elif func == 0x02: decoded_instr['mnemonic'] = 'ROL'
+
+      elif opcode == 0x03:  # I-type
+        decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
+        decoded_instr['rd'] = (raw_instr >> 16) & 0x1F
+        decoded_instr['imm'] = raw_instr & 0xFFFF
+        decoded_instr['instruction_type'] = 'I'
+        
+        # For I-type with opcode 0x03, we need to distinguish by examining the instruction pattern
+        # Since the assembler uses the same opcode for all I-type arithmetic, we need another way
+        # Looking at the actual instruction patterns or use a different encoding
+        # For now, assume all 0x03 opcodes are ADDI (this needs to be fixed in assembler)
+        decoded_instr['mnemonic'] = 'ADDI'
+
+      elif opcode == 0x04:  # LD
+        decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
+        decoded_instr['rd'] = (raw_instr >> 16) & 0x1F
+        decoded_instr['imm'] = raw_instr & 0xFFFF
+        decoded_instr['instruction_type'] = 'I'
+        decoded_instr['mnemonic'] = 'LD'
+
+      elif opcode == 0x05:  # SD
+        decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
+        decoded_instr['rs2'] = (raw_instr >> 16) & 0x1F
+        decoded_instr['imm'] = raw_instr & 0xFFFF
+        decoded_instr['instruction_type'] = 'S'
+        decoded_instr['mnemonic'] = 'SD'
+
+      elif opcode == 0x06:  # B-type CHECK
+        decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
+        decoded_instr['rs2'] = (raw_instr >> 16) & 0x1F
+        decoded_instr['imm'] = raw_instr & 0xFFFF
+        decoded_instr['instruction_type'] = 'B'
+        
+        func = (raw_instr >> 11) & 0x1F
+        if func == 0x00: decoded_instr['mnemonic'] = 'BEQ'
+        elif func == 0x01: decoded_instr['mnemonic'] = 'BNE'
+        elif func == 0x02: decoded_instr['mnemonic'] = 'BLT'
+        elif func == 0x03: decoded_instr['mnemonic'] = 'BGE'
+
+      elif opcode in {0x07, 0x08}:  # J-type CHECK
+        decoded_instr['imm'] = raw_instr & 0x3FFFFFF
+        decoded_instr['instruction_type'] = 'J'
+        if opcode == 0x07: decoded_instr['mnemonic'] = 'J'
+        elif opcode == 0x08: 
+          decoded_instr['mnemonic'] = 'JR'
+          decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
+
+      elif opcode == 0x3F:  # System (HALT/NOP)
+        decoded_instr['instruction_type'] = 'SYS'
+        # For HALT, all lower bits should be 0. For NOP, check pattern.
+        if raw_instr == 0xFC000000:  # HALT pattern from assembler
+          decoded_instr['mnemonic'] = 'HALT'
+        else:
+          decoded_instr['mnemonic'] = 'NOP'
+
+      # Read register values with forwarding
+      if decoded_instr['rs1'] != 0:
+        decoded_instr['rs1_val'] = self._get_register_value_with_forwarding(decoded_instr['rs1'])
+
+      if decoded_instr['rs2'] != 0:
+        decoded_instr['rs2_val'] = self._get_register_value_with_forwarding(decoded_instr['rs2'])
+      
+      self.ID_EX["instr"] = decoded_instr
 
     else:
       self.ID_EX["instr"] = None
   
-  def _get_register_value_with_forwarding(self, reg_name: str) -> int:
+  def _get_register_value_with_forwarding(self, reg_num: int) -> int:
     """
     Gets register value with forwarding from later pipeline stages.
     """
-    # Check if we can forward from MEM stage
-    if (self.EX_MEM["instr"] and self.EX_MEM["instr"].rd == reg_name and 
-        hasattr(self.EX_MEM["instr"], 'result') and self.EX_MEM["instr"].result is not None):
-      self._log(f"[FORWARD] Forwarding {self.EX_MEM['instr'].result} from EX/MEM stage for {reg_name}")
-      return self.EX_MEM["instr"].result
+    # Register 0 is always 0
+    if reg_num == 0:
+      return 0
+      
+    # Check if we can forward from EX/MEM stage
+    if (self.EX_MEM["instr"] and self.EX_MEM["instr"]['rd'] == reg_num and 
+        self.EX_MEM["instr"]['result'] is not None):
+      return self.EX_MEM["instr"]['result']
     
-    # Check if we can forward from WB stage  
-    if (self.MEM_WB["instr"] and self.MEM_WB["instr"].rd == reg_name):
-      if hasattr(self.MEM_WB["instr"], 'result') and self.MEM_WB["instr"].result is not None:
-        self._log(f"[FORWARD] Forwarding {self.MEM_WB['instr'].result} from MEM/WB stage for {reg_name}")
-        return self.MEM_WB["instr"].result
-      elif hasattr(self.MEM_WB["instr"], 'loaded_value') and self.MEM_WB["instr"].loaded_value is not None:
-        self._log(f"[FORWARD] Forwarding loaded value {self.MEM_WB['instr'].loaded_value} from MEM/WB stage for {reg_name}")
-        return self.MEM_WB["instr"].loaded_value
+    # Check if we can forward from MEM/WB stage  
+    if (self.MEM_WB["instr"] and self.MEM_WB["instr"]['rd'] == reg_num):
+      if self.MEM_WB["instr"]['result'] is not None:
+        return self.MEM_WB["instr"]['result']
+      elif self.MEM_WB["instr"]['loaded_value'] is not None:
+        return self.MEM_WB["instr"]['loaded_value']
     
     # Default: read from register file
-    return self.registers.read(reg_name)
+    return self.registers.read(f"R{reg_num}")
 
   def execute(self):
     """ 
@@ -147,91 +215,115 @@ class Pipeline:
     """
     instr = self.ID_EX["instr"]
     if instr:
-      if instr.op == "ADD":
-        instr.result = instr.rs1_val + instr.rs2_val
-      elif instr.op == "SUB":
-        instr.result = instr.rs1_val - instr.rs2_val
-      elif instr.op == "MUL":
-        instr.result = instr.rs1_val * instr.rs2_val
-      elif instr.op == "DIV":
-        instr.result = instr.rs1_val // instr.rs2_val
-      elif instr.op == "MOD":
-        instr.result = instr.rs1_val % instr.rs2_val
+      mnemonic = instr['mnemonic']
+      
+      # ALU Operations (R-type and I-type)
+      if mnemonic == "ADD":
+        instr['result'] = instr['rs1_val'] + instr['rs2_val']
+        self.registers.update_flags(instr['result'], instr['rs1_val'], instr['rs2_val'], 'add')
+      elif mnemonic == "SUB":
+        instr['result'] = instr['rs1_val'] - instr['rs2_val']
+        self.registers.update_flags(instr['result'], instr['rs1_val'], instr['rs2_val'], 'sub')
+      elif mnemonic == "MUL":
+        instr['result'] = instr['rs1_val'] * instr['rs2_val']
+        self.registers.update_flags(instr['result'])
+      elif mnemonic == "DIV":
+        instr['result'] = instr['rs1_val'] // instr['rs2_val'] if instr['rs2_val'] != 0 else 0
+        self.registers.update_flags(instr['result'])
+      elif mnemonic == "MOD":
+        instr['result'] = instr['rs1_val'] % instr['rs2_val'] if instr['rs2_val'] != 0 else 0
+        self.registers.update_flags(instr['result'])
 
-      elif instr.op == "AND":
-        instr.result = instr.rs1_val & instr.rs2_val
-      elif instr.op == "OR":
-        instr.result = instr.rs1_val | instr.rs2_val
-      elif instr.op == "XOR":
-        instr.result = instr.rs1_val ^ instr.rs2_val
-      elif instr.op == "NOT":
-        instr.result = ~instr.rs1_val
+      # Logic Operations
+      elif mnemonic == "AND":
+        instr['result'] = instr['rs1_val'] & instr['rs2_val']
+        self.registers.update_flags(instr['result'])
+      elif mnemonic == "OR":
+        instr['result'] = instr['rs1_val'] | instr['rs2_val']
+        self.registers.update_flags(instr['result'])
+      elif mnemonic == "XOR":
+        instr['result'] = instr['rs1_val'] ^ instr['rs2_val']
+        self.registers.update_flags(instr['result'])
+      elif mnemonic == "NOT":
+        instr['result'] = ~instr['rs1_val'] & 0xFFFFFFFF
+        self.registers.update_flags(instr['result'])
 
-      elif instr.op == "SLL":
-        instr.result = instr.rs1_val << instr.rs2_val
-      elif instr.op == "SRL":
-        instr.result = instr.rs1_val >> instr.rs2_val
-      elif instr.op == "ROL":
-        instr.result = ((instr.rs1_val << instr.rs2_val) | (instr.rs1_val >> (32 - instr.rs2_val))) & 0xFFFFFFFF
+      # Shift Operations
+      elif mnemonic == "SLL":
+        instr['result'] = (instr['rs1_val'] << instr['rs2_val']) & 0xFFFFFFFF
+        self.registers.update_flags(instr['result'])
+      elif mnemonic == "SRL":
+        instr['result'] = instr['rs1_val'] >> instr['rs2_val']
+        self.registers.update_flags(instr['result'])
+      elif mnemonic == "ROL":
+        shift = instr['rs2_val'] & 0x1F  # Only use bottom 5 bits
+        instr['result'] = ((instr['rs1_val'] << shift) | (instr['rs1_val'] >> (32 - shift))) & 0xFFFFFFFF
+        self.registers.update_flags(instr['result'])
 
-      elif instr.op == "ADDI":
-        instr.result = instr.rs1_val + instr.immediate
-      elif instr.op == "SUBI":
-        instr.result = instr.rs1_val - instr.immediate
-      elif instr.op == "ANDI":
-        instr.result = instr.rs1_val & instr.immediate
-      elif instr.op == "ORI":
-        instr.result = instr.rs1_val | instr.immediate
-      elif instr.op == "XORI":
-        instr.result = instr.rs1_val ^ instr.immediate
-      elif instr.op == "SLLI":
-        instr.result = instr.rs1_val << instr.immediate
-      elif instr.op == "LUI":
-        instr.result = instr.immediate << 48
+      # Immediate Operations
+      elif mnemonic == "ADDI":
+        instr['result'] = instr['rs1_val'] + instr['imm']
+        self.registers.update_flags(instr['result'], instr['rs1_val'], instr['imm'], 'addi')
+      elif mnemonic == "SUBI":
+        instr['result'] = instr['rs1_val'] - instr['imm']
+        self.registers.update_flags(instr['result'], instr['rs1_val'], instr['imm'], 'subi')
+      elif mnemonic == "ANDI":
+        instr['result'] = instr['rs1_val'] & instr['imm']
+        self.registers.update_flags(instr['result'])
+      elif mnemonic == "ORI":
+        instr['result'] = instr['rs1_val'] | instr['imm']
+        self.registers.update_flags(instr['result'])
+      elif mnemonic == "XORI":
+        instr['result'] = instr['rs1_val'] ^ instr['imm']
+        self.registers.update_flags(instr['result'])
+      elif mnemonic == "SLLI":
+        instr['result'] = (instr['rs1_val'] << instr['imm']) & 0xFFFFFFFF
+        self.registers.update_flags(instr['result'])
+      elif mnemonic == "LUI":
+        instr['result'] = (instr['imm'] << 16) & 0xFFFFFFFF
+        self.registers.update_flags(instr['result'])
 
-      elif instr.op == "LD":
-        instr.address = instr.rs1_val + instr.immediate
-      elif instr.op == "SD":
-        instr.address = instr.rs1_val + instr.immediate
+      # Memory Operations
+      elif mnemonic == "LD":
+        instr['address'] = instr['rs1_val'] + instr['imm']
+      elif mnemonic == "SD":
+        instr['address'] = instr['rs1_val'] + instr['imm']
 
-      elif instr.op in {"BEQ", "BNE", "BLT", "BGE"}:
+      # Branch Operations
+      elif mnemonic in {"BEQ", "BNE", "BLT", "BGE"}:
         taken = False
-        if instr.op == "BGE":
-          taken = (instr.rs1_val >= instr.rs2_val)
-        elif instr.op == "BLT":
-          taken = (instr.rs1_val < instr.rs2_val)
-        elif instr.op == "BNE":
-          taken = (instr.rs1_val != instr.rs2_val)
-        elif instr.op == "BEQ":
-          taken = (instr.rs1_val == instr.rs2_val)
+        if mnemonic == "BGE":
+          taken = (instr['rs1_val'] >= instr['rs2_val'])
+        elif mnemonic == "BLT":
+          taken = (instr['rs1_val'] < instr['rs2_val'])
+        elif mnemonic == "BNE":
+          taken = (instr['rs1_val'] != instr['rs2_val'])
+        elif mnemonic == "BEQ":
+          taken = (instr['rs1_val'] == instr['rs2_val'])
 
         predicted = False
         self.hazard_unit.update_control_hazard(taken, predicted)
 
         if taken:
-          target = instr.immediate
-          if target in self.labels:
-            self.PC = self.labels[target]
-          else:
-            self.PC += int(target)
+          # Branch target is PC-relative
+          self.PC = self.PC + instr['imm'] - 1  # -1 because PC will be incremented in fetch
 
-      elif instr.op == "J":
-        target = instr.immediate
-        if target in self.labels:
-          self.PC = self.labels[target]
+      # Jump Operations
+      elif mnemonic == "J":
+        self.PC = instr['imm']
+      elif mnemonic == "JAL":
+        instr['result'] = self.PC + 4  # Store return address
+        self.PC = instr['imm']
+      elif mnemonic == "JR":
+        self.PC = instr['rs1_val']
 
-      elif instr.op == "JAL":
-        instr.result = self.PC + 4
-        target = instr.immediate
-        if target in self.labels:
-          self.PC = self.labels[target]
-
-      elif instr.op == "JR":
-        target = instr.rs1_val
-        if target in self.labels:
-          self.PC = self.labels[target]
-      
-      # More instructions can be added here..
+      # System Operations
+      elif mnemonic == "HALT":
+        self._log("[EXECUTE] HALT instruction executed")
+        # Could set a halt flag here
+        
+      elif mnemonic == "NOP":
+        pass  # Do nothing
 
       self.EX_MEM["instr"] = instr 
     else:
@@ -243,11 +335,14 @@ class Pipeline:
     """
     instr = self.EX_MEM["instr"]
     if instr:
-      if instr.op == "LD":
-        instr.loaded_value = self.memory.load_word(instr.address)
+      mnemonic = instr['mnemonic']
+      
+      if mnemonic == "LD":
+        instr['loaded_value'] = self.memory.load_word(instr['address'])
 
-      elif instr.op == "SD":
-        self.memory.store_word(instr.address, instr.rs2_val)
+      elif mnemonic == "SD":
+        self.memory.store_word(instr['address'], instr['rs2_val'])
+        
       self.MEM_WB["instr"] = instr
     else:
       self.MEM_WB["instr"] = None
@@ -259,18 +354,20 @@ class Pipeline:
     instr = self.MEM_WB["instr"]
     if instr:
       try:
-        if instr.op in instr.R_TYPE_INSTRS and instr.rd is not None:
-          self._log(f"[WB] Writing {instr.result} to {instr.rd} ({instr.op})")
-          self.registers.write(instr.rd, instr.result)
-        elif instr.op in instr.I_TYPE_INSTRS and instr.rd is not None:
-          self._log(f"[WB] Writing {instr.result} to {instr.rd} ({instr.op})")
-          self.registers.write(instr.rd, instr.result)
-        elif instr.op == "LD" and instr.rd is not None:
-          self._log(f"[WB] Loading {instr.loaded_value} to {instr.rd} (LD)")
-          self.registers.write(instr.rd, instr.loaded_value)
-        elif instr.op == "JAL" and instr.rd is not None:
-          self._log(f"[WB] Writing {instr.result} to {instr.rd} (JAL)")
-          self.registers.write(instr.rd, instr.result)
+        mnemonic = instr['mnemonic']
+        rd = instr['rd']
+        
+        # Only write to register if rd != 0 (register 0 is always 0)
+        if rd != 0:
+          if instr['instruction_type'] in ['R', 'I'] and instr['result'] is not None:
+            self.registers.write(f"R{rd}", instr['result'])
+            
+          elif mnemonic == "LD" and instr['loaded_value'] is not None:
+            self.registers.write(f"R{rd}", instr['loaded_value'])
+            
+          elif mnemonic == "JAL" and instr['result'] is not None:
+            self.registers.write(f"R{rd}", instr['result'])
+          
       except Exception as e:
         self._log(f"[ERROR WB] Instruction: {instr}, Error: {e}")
 
@@ -311,12 +408,60 @@ class Pipeline:
     if self.PC < len(self.instructions):
       self.active_stages.append("IF")
 
+    # Create readable cycle info for history
+    def format_instr_for_display(instr):
+      if instr is None:
+        return None
+      
+      elif isinstance(instr, dict):
+        mnemonic = instr['mnemonic']
+        
+        # Format instruction with full operands
+        if instr['instruction_type'] == 'R':
+          if mnemonic == 'NOT':
+            formatted = f"{mnemonic} R{instr['rd']}, R{instr['rs1']}"
+          else:
+            formatted = f"{mnemonic} R{instr['rd']}, R{instr['rs1']}, R{instr['rs2']}"
+            
+        elif instr['instruction_type'] == 'I':
+          if mnemonic == 'LD':
+            formatted = f"{mnemonic} R{instr['rd']}, {instr['imm']}(R{instr['rs1']})"
+          else:
+            formatted = f"{mnemonic} R{instr['rd']}, R{instr['rs1']}, {instr['imm']}"
+            
+        elif instr['instruction_type'] == 'S':
+          formatted = f"{mnemonic} R{instr['rs2']}, {instr['imm']}(R{instr['rs1']})"
+          
+        elif instr['instruction_type'] == 'B':
+          formatted = f"{mnemonic} R{instr['rs1']}, R{instr['rs2']}, {instr['imm']}"
+          
+        elif instr['instruction_type'] == 'J':
+          if mnemonic == 'JAL':
+            formatted = f"{mnemonic} R{instr['rd']}, {instr['imm']}"
+          elif mnemonic == 'JR':
+            formatted = f"{mnemonic} R{instr['rs1']}"
+          else:  # J
+            formatted = f"{mnemonic} {instr['imm']}"
+            
+        elif instr['instruction_type'] == 'SYS':
+          formatted = mnemonic  # HALT, NOP no tienen operandos
+          
+        else:
+          formatted = mnemonic  # Fallback
+          
+        return f"{formatted} (0x{instr['raw']:08X})"
+      else:
+        return f"Raw: 0x{instr:08X}"
+    
     cycle_info = {
-        "IF": self.IF_ID["instr"],
-        "ID": self.ID_EX["instr"],
-        "EX": self.EX_MEM["instr"],
-        "MEM": self.MEM_WB["instr"],
-        "WB": self.MEM_WB.get("old_instr"),
+        "cycle": self.cycle_count,
+        "PC": self.PC,
+        "IF": format_instr_for_display(self.IF_ID["instr"]),
+        "ID": format_instr_for_display(self.ID_EX["instr"]),
+        "EX": format_instr_for_display(self.EX_MEM["instr"]),
+        "MEM": format_instr_for_display(self.MEM_WB["instr"]),
+        "WB": format_instr_for_display(self.MEM_WB.get("old_instr")),
+        "logs": self.cycle_logs.copy()  # Copia de los logs de este ciclo
     }
     self.execution_history.append(cycle_info)
 
@@ -327,9 +472,3 @@ class Pipeline:
         self.on_cycle(self)
       except Exception as e:
         self._log(f"[ERROR on_cycle callback] Error: {e}")
-
-
-      
-          
-
-

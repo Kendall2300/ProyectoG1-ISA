@@ -9,12 +9,16 @@ from CPU.Pipeline import Pipeline
 from Instruction import parse_instructions
 from assembler import assemble
 import os
+import shutil
 
 
 class App(tk.Tk):
   def __init__(self):
     super().__init__()
-    self.output_directory = "SimuladorCPU/out"
+    self.output_directory = "./SimuladorCPU/out"
+
+    # Clean output directory at startup
+    self._clean_output_directory()
 
     # Initialize pipeline 
     self.pipeline = Pipeline()
@@ -73,6 +77,17 @@ class App(tk.Tk):
     # Set up pipeline callback for UI updates 
     self.pipeline.on_cycle = lambda pipeline: self._update_views()
 
+  def _clean_output_directory(self) -> None:
+    """
+    Cleans the output directory by removing all files and recreating it.
+    """
+    try:
+      if os.path.exists(self.output_directory):
+        # Remove all files in the directory
+        shutil.rmtree(self.output_directory)
+    except Exception as e:
+      print(f"Error cleaning output directory: {e}")
+
   def run(self) -> None:
     """ 
     Starts the main application loop.
@@ -90,16 +105,35 @@ class App(tk.Tk):
     """
     Handles the Run button click event.
     """
-    # Get code from text editor
-    code = (self.textEditor.get_code()).splitlines()
+    binary_path = os.path.join(self.output_directory, "program.bin")
+    
+    # Check if binary file exists
+    if not os.path.exists(binary_path):
+      self.console.log("Error: No compiled program found. Please compile first.")
+      self.textEditor.disable_run_button()
+      return
+    
+    try:
+      self.pipeline.load_instructions(binary_path)
+      self.pipeline.PC = 0
+      
+      # Reset pipeline state
+      self.pipeline.cycle_count = 0
+      self.pipeline.execution_history = []
+      self.pipeline.IF_ID = {"instr": None}
+      self.pipeline.ID_EX = {"instr": None}
+      self.pipeline.EX_MEM = {"instr": None}
+      self.pipeline.MEM_WB = {"instr": None}
 
-    # Instructions
-    self.pipeline.instructions = parse_instructions(code)
-    self.pipeline.labels = self.pipeline.map_labels(code)
-    self.pipeline.PC = 0
-
-    # Run pipeline
-    self._step_loop()
+      # Clear console and start execution
+      self.console.log("Starting program execution...")
+      
+      # Run pipeline
+      self._step_loop()
+      
+    except Exception as e:
+      self.console.log(f"Error running program: {e}")
+      self.textEditor.disable_run_button()
 
   def _step_loop(self) -> None:
     """
@@ -133,13 +167,27 @@ class App(tk.Tk):
     self.after(50, self._step_loop)
   
   def _on_compile_button_click(self):
-    # Create ASM file
-    code = self.textEditor.get_code()
-    asmFilepath = self._create_asm_file(code)
+    try:
+      # Create ASM file
+      code = self.textEditor.get_code()
+      asmFilepath = self._create_asm_file(code)
 
-    # Assemble code
-    outputFilePath = os.path.join(self.output_directory, "program.bin")
-    assemble(asmFilepath, outputFilePath)
+      # Assemble code
+      outputFilePath = os.path.join(self.output_directory, "program.bin")
+      assemble(asmFilepath, outputFilePath)
+
+      # Check if binary file was created successfully
+      if os.path.exists(outputFilePath):
+        # Show success message and enable Run button
+        self.console.log("Compilation successful!")
+        self.textEditor.enable_run_button()
+      else:
+        self.console.log("Compilation failed: Binary file not created")
+        self.textEditor.disable_run_button()
+    
+    except Exception as e:
+      self.console.log(f"Compilation error: {e}")
+      self.textEditor.disable_run_button()
 
   def _create_asm_file(self, code: str, filename: str = "program.asm") -> str:
     """
@@ -189,5 +237,11 @@ class App(tk.Tk):
           # Insert text
           self.textEditor.text.insert(tk.END, content)
           self.textEditor.update_linenumbers()
+          
+          # Disable Run button since new code needs to be compiled
+          self.textEditor.disable_run_button()
+          self.console.log(f"File loaded: {filepath}")
+          self.console.log("Please compile before running.")
+          
       except Exception as e:
         self.console.log(f"Error reading file: {e}")

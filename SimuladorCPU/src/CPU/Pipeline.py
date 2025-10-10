@@ -205,52 +205,43 @@ class Pipeline:
         decoded_instr['instruction_type'] = 'J'
         decoded_instr['mnemonic'] = 'JR'
 
-      elif opcode == 0x10:  # Vault operations (VSTORE/VINIT)
-        decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F  # vidx
-        decoded_instr['rs2'] = (raw_instr >> 16) & 0x1F  # reg
-        decoded_instr['instruction_type'] = 'V'
-
-        # If reg is R0, treat as VINIT
-        if decoded_instr['rs2'] == 0:  
-          decoded_instr['mnemonic'] = 'VINIT'
-        else:
-          decoded_instr['mnemonic'] = 'VSTORE'
-
-      elif opcode == 0x11:  # Hash family (HBLOCK, HMULK, HMODP, HFINAL)
-        decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F
-        decoded_instr['rs2'] = (raw_instr >> 16) & 0x1F
-        decoded_instr['rd'] = (raw_instr >> 16) & 0x1F
-        decoded_instr['imm'] = raw_instr & 0xFFFF
+      elif opcode == 0x10:  # Vault operations con nuevo formato V
+        decoded_instr['vidx'] = (raw_instr >> 21) & 0x1F  # vidx (5 bits)
+        decoded_instr['rd'] = (raw_instr >> 16) & 0x1F    # rd (5 bits)
+        decoded_instr['funct'] = (raw_instr >> 11) & 0x1F # funct (5 bits)
         decoded_instr['instruction_type'] = 'V'
         
-        # Distinguish by presence of fields:
-        # HBLOCK: rs1 holds register with 64-bit block
-        # HMULK: rd, rs1 pattern
-        # HMODP: rd, rs1 pattern
-        # HFINAL: rd
-        # To identify: if rd==0 and rs2==0 -> HBLOCK (we rely on simulator packing)
-        if decoded_instr['rd'] == 0 and decoded_instr['rs2'] == 0:
-          decoded_instr['mnemonic'] = 'HBLOCK'
-        # HMULK: rd, rs1 pattern
-        # HMODP: rd, rs1 pattern
-        elif decoded_instr['rs1'] == 0 and decoded_instr['rd'] != 0:
-          decoded_instr['mnemonic'] = 'HFINAL'
+        # Determinar instrucción por campo funct
+        funct = decoded_instr['funct']
+        if funct == 0x00: decoded_instr['mnemonic'] = 'VSTORE'
+        elif funct == 0x01: decoded_instr['mnemonic'] = 'VINIT'
+        else: decoded_instr['mnemonic'] = 'UNKNOWN_VAULT'
 
-      elif opcode == 0x12:  # Signature family (VSIGN, VVERIF)
-        decoded_instr['rs1'] = (raw_instr >> 21) & 0x1F   # vidx
-        decoded_instr['rs2'] = (raw_instr >> 16) & 0x1F   # payload reg or rd depending
-        target = decoded_instr['rs2'] & 0x1F
-
-        if decoded_instr['rs2'] != 0:
-          decoded_instr['result'] = target
-        else:
-          decoded_instr['result'] = decoded_instr['rd']
-
+      elif opcode == 0x11:  # Hash operations con nuevo formato V
+        decoded_instr['vidx'] = (raw_instr >> 21) & 0x1F  # vidx (5 bits)
+        decoded_instr['rd'] = (raw_instr >> 16) & 0x1F    # rd (5 bits)
+        decoded_instr['funct'] = (raw_instr >> 11) & 0x1F # funct (5 bits)
         decoded_instr['instruction_type'] = 'V'
         
-        func = raw_instr & 0x3F
-        if func == 0x00: decoded_instr['mnemonic'] = 'VSIGN'
-        elif func == 0x01: decoded_instr['mnemonic'] = 'VVERIF'
+        # Determinar instrucción por campo funct
+        funct = decoded_instr['funct']
+        if funct == 0x00: decoded_instr['mnemonic'] = 'HBLOCK'
+        elif funct == 0x01: decoded_instr['mnemonic'] = 'HMULK'
+        elif funct == 0x02: decoded_instr['mnemonic'] = 'HMODP'
+        elif funct == 0x03: decoded_instr['mnemonic'] = 'HFINAL'
+        else: decoded_instr['mnemonic'] = 'UNKNOWN_HASH'
+
+      elif opcode == 0x12:  # Signature operations con nuevo formato V
+        decoded_instr['vidx'] = (raw_instr >> 21) & 0x1F  # vidx (5 bits)
+        decoded_instr['rd'] = (raw_instr >> 16) & 0x1F    # rd (5 bits)
+        decoded_instr['funct'] = (raw_instr >> 11) & 0x1F # funct (5 bits)
+        decoded_instr['instruction_type'] = 'V'
+        
+        # Determinar instrucción por campo funct
+        funct = decoded_instr['funct']
+        if funct == 0x00: decoded_instr['mnemonic'] = 'VSIGN'
+        elif funct == 0x01: decoded_instr['mnemonic'] = 'VVERIF'
+        else: decoded_instr['mnemonic'] = 'UNKNOWN_SIGNATURE'
 
       elif opcode == 0x3F:  # System (HALT/NOP)
         decoded_instr['instruction_type'] = 'SYS'
@@ -295,8 +286,10 @@ class Pipeline:
     # Default: read from register file
     return self.registers.read(f"R{reg_num}")
   
-  def rol64(x, n):
+  def rol64(self, x, n):
+    """Rotate left 64-bit integer by n positions"""
     x &= 0xFFFFFFFFFFFFFFFF
+    n = n % 64  # Ensure n is within valid range
     return ((x << n) | (x >> (64 - n))) & 0xFFFFFFFFFFFFFFFF
 
   def execute(self):
@@ -415,36 +408,70 @@ class Pipeline:
         self._HASH_STATE['HS_C'] = self._INIT['C']
         self._HASH_STATE['HS_D'] = self._INIT['D']
       elif mnemonic == "VSTORE":
-        vidx = instr['rs1'] & 0x1F
-        regn = instr['rs2'] & 0x1F
+        vidx = instr['vidx'] & 0x1F
+        regn = instr['rd'] & 0x1F
         if 0 <= vidx < 4:
           val = self.registers.read(f"R{regn}")
           self._VAULT[f'KEY{vidx}'] = val & 0xFFFFFFFFFFFFFFFF
 
       # Hash Operations
       elif mnemonic == "HBLOCK":
-        block = instr['rs1_val'] & 0xFFFFFFFFFFFFFFFF
-        A = self._HASH_STATE['HS_A']; B = self._HASH_STATE['HS_B']; C = self._HASH_STATE['HS_C']; D = self._HASH_STATE['HS_D']
+        # HBLOCK rs1 - En formato V: rs1 está en campo 'rd'
+        src_reg = instr['rd'] & 0x1F
+        block = self.registers.read(f"R{src_reg}") & 0xFFFFFFFFFFFFFFFF
+        
+        # Estado actual (valores originales)
+        A = self._HASH_STATE['HS_A']
+        B = self._HASH_STATE['HS_B'] 
+        C = self._HASH_STATE['HS_C']
+        D = self._HASH_STATE['HS_D']
+        
+        # Funciones auxiliares ToyMDMA
         f = (A & B) | ((~A) & C)
         g = (B & C) | ((~B) & D)
         h = A ^ B ^ C ^ D
         mul = (block * 0x9e3779b97f4a7c15) & 0xFFFFFFFFFFFFFFFF
-        A = (self.rol64((A + f + mul) & 0xFFFFFFFFFFFFFFFF, 7) + B) & 0xFFFFFFFFFFFFFFFF
-        B = (self.rol64((B + g + block) & 0xFFFFFFFFFFFFFFFF, 11) + (C * 3)) & 0xFFFFFFFFFFFFFFFF
-        C = (self.rol64((C + h + mul) & 0xFFFFFFFFFFFFFFFF, 17) + (D % 0xFFFFFFFB)) & 0xFFFFFFFFFFFFFFFF
-        D = (self.rol64((D + A + block) & 0xFFFFFFFFFFFFFFFF, 19) ^ ((f * 5) & 0xFFFFFFFFFFFFFFFF)) & 0xFFFFFFFFFFFFFFFF
-        self._HASH_STATE['HS_A'], self._HASH_STATE['HS_B'], self._HASH_STATE['HS_C'], self._HASH_STATE['HS_D'] = A, B, C, D
+        
+        # Actualización del estado (usar valores originales)
+        new_A = (self.rol64((A + f + mul) & 0xFFFFFFFFFFFFFFFF, 7) + B) & 0xFFFFFFFFFFFFFFFF
+        new_B = (self.rol64((B + g + block) & 0xFFFFFFFFFFFFFFFF, 11) + (C * 3)) & 0xFFFFFFFFFFFFFFFF
+        new_C = (self.rol64((C + h + mul) & 0xFFFFFFFFFFFFFFFF, 17) + (D % 0xFFFFFFFB)) & 0xFFFFFFFFFFFFFFFF
+        new_D = (self.rol64((D + A + block) & 0xFFFFFFFFFFFFFFFF, 19) ^ ((f * 5) & 0xFFFFFFFFFFFFFFFF)) & 0xFFFFFFFFFFFFFFFF
+        
+        # Aplicar nuevos valores
+        self._HASH_STATE['HS_A'] = new_A
+        self._HASH_STATE['HS_B'] = new_B
+        self._HASH_STATE['HS_C'] = new_C
+        self._HASH_STATE['HS_D'] = new_D
+        
       elif mnemonic == "HMULK":
-        val = instr['rs1_val'] & 0xFFFFFFFFFFFFFFFF
-        CONST = 0x9e3779b97f4a7c15 & 0xFFFFFFFFFFFFFFFF
+        # HMULK rd, rs1 - En formato V: rd=destino en campo 'rd', rs1=fuente en campo 'vidx'
+        # Leer valor del registro fuente (que está en vidx)
+        src_reg = instr['vidx'] & 0x1F
+        val = self.registers.read(f"R{src_reg}") & 0xFFFFFFFFFFFFFFFF
+        CONST = 0x9e3779b97f4a7c15
         instr['result'] = (val * CONST) & 0xFFFFFFFFFFFFFFFF
+        
+      elif mnemonic == "HMODP":
+        # HMODP rd, rs1 - En formato V: rd=destino en campo 'rd', rs1=fuente en campo 'vidx'
+        # Leer valor del registro fuente (que está en vidx)
+        src_reg = instr['vidx'] & 0x1F
+        val = self.registers.read(f"R{src_reg}") & 0xFFFFFFFFFFFFFFFF
+        CONST = 0xFFFFFFFB  # Primo cercano a 2^32
+        instr['result'] = val % CONST
+        
       elif mnemonic == "HFINAL":
-        A = self._HASH_STATE['HS_A']; B = self._HASH_STATE['HS_B']; C = self._HASH_STATE['HS_C']; D = self._HASH_STATE['HS_D']
-        instr['result'] = A ^ B ^ C ^ D
+        # HFINAL rd - Extrae hash de 256 bits a 4 registros consecutivos
+        rd = instr['rd']
+        if rd != 0 and rd <= 28:  # Asegurar que hay espacio para 4 registros
+          self.registers.write(f"R{rd}", self._HASH_STATE['HS_A'] & 0xFFFFFFFF)
+          self.registers.write(f"R{rd+1}", self._HASH_STATE['HS_B'] & 0xFFFFFFFF)
+          self.registers.write(f"R{rd+2}", self._HASH_STATE['HS_C'] & 0xFFFFFFFF) 
+          self.registers.write(f"R{rd+3}", self._HASH_STATE['HS_D'] & 0xFFFFFFFF)
 
       # Signature Operations
       elif mnemonic == "VSIGN":
-        vidx = instr['rs1'] & 0x1F
+        vidx = instr['vidx'] & 0x1F
         if 0 <= vidx < self.VAULT_NUM_KEYS:
           k = self._VAULT[f'KEY{vidx}']
           a = self._HASH_STATE['HS_A'] ^ k
@@ -452,7 +479,17 @@ class Pipeline:
           c = self._HASH_STATE['HS_C'] ^ k
           d = self._HASH_STATE['HS_D'] ^ k
           instr['result'] = (a + b + c + d) & 0xFFFFFFFFFFFFFFFF
-      # VVERIF
+      elif mnemonic == "VVERIF":
+        vidx = instr['vidx'] & 0x1F
+        if 0 <= vidx < self.VAULT_NUM_KEYS:
+          k = self._VAULT[f'KEY{vidx}']
+          expected = instr['rd_val'] & 0xFFFFFFFFFFFFFFFF
+          a = self._HASH_STATE['HS_A'] ^ k
+          b = self._HASH_STATE['HS_B'] ^ k
+          c = self._HASH_STATE['HS_C'] ^ k
+          d = self._HASH_STATE['HS_D'] ^ k
+          computed = (a + b + c + d) & 0xFFFFFFFFFFFFFFFF
+          instr['result'] = 1 if computed == expected else 0
 
       # System Operations
       elif mnemonic == "HALT":

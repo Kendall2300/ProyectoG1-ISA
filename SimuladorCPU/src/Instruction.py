@@ -5,7 +5,7 @@ R_TYPE_INSTRS = {"ADD", "SUB", "MUL", "DIV", "MOD", "AND", "OR", "XOR", "NOT", "
 I_TYPE_INSTRS = {"ADDI", "SUBI", "ANDI", "ORI", "XORI", "SLLI", "LUI"}
 S_TYPE_INSTRS = {"LD", "SD"}
 B_TYPE_INSTRS = {"BEQ", "BNE", "BLT", "BGE"}
-VAULT_INSTRS = {"VSTORE", "VINIT"}
+V_TYPE_INSTRS = {"VSTORE", "VINIT", "HBLOCK", "HMULK", "HMODP", "HFINAL", "VSIGN", "VVERIF"}
 SYSTEM_TYPE_INSTRS = {"NOP", "HALT"}
 
 class Instruction:
@@ -83,35 +83,36 @@ class Instruction:
         elif self.op in SYSTEM_TYPE_INSTRS:
             pass
 
-        # Vault / Hash / Sign
-        elif self.op in VAULT_INSTRS:
-            # VSTORE vidx, RS1  OR VINIT vidx
-            self.vidx = int(tokens[1].strip())
-            if self.op == "VSTORE":
-                self.rs1 = tokens[2].strip()
-
-        elif self.op == "HBLOCK":
-            # HBLOCK RS1
-            self.rs1 = tokens[1].strip()
-
-        elif self.op in {"HMULK", "HMODP"}:
-            # OP RD, RS1
-            self.rd = tokens[1].strip(',')
-            self.rs1 = tokens[2].strip()
-
-        elif self.op == "HFINAL":
-            # HFINAL RD
-            self.rd = tokens[1].strip()
-
-        elif self.op == "VSIGN":
-            # VSIGN RD, VIDX
-            self.rd = tokens[1].strip(',')
-            self.vidx = int(tokens[2].strip())
-
-        elif self.op == "VVERIF":
-            # VVERIF RS, VIDX
-            self.rs = tokens[1].strip(',')
-            self.vidx = int(tokens[2].strip())
+        # V-type: Vault / Hash / Sign operations
+        elif self.op in V_TYPE_INSTRS:
+            if self.op in {"VSTORE", "VINIT"}:
+                # VSTORE vidx, rd  OR VINIT (sin argumentos)
+                if self.op == "VSTORE":
+                    self.vidx = int(tokens[1].strip())
+                    self.rd = tokens[2].strip()
+                else:  # VINIT
+                    self.vidx = 0
+                    self.rd = None
+            elif self.op == "HBLOCK":
+                # HBLOCK rs1 - En formato V: rs1 va en campo 'rd'
+                self.vidx = 0
+                self.rd = tokens[1].strip()  # rs1 fuente va en rd
+            elif self.op in {"HMULK", "HMODP"}:
+                # HMULK rd, rs1 / HMODP rd, rs1 - En formato V: rd=rd, rs1=vidx
+                self.rd = tokens[1].strip(',')    # registro destino
+                self.vidx = int(tokens[2].strip().replace('R', ''))  # registro fuente como número
+            elif self.op == "HFINAL":
+                # HFINAL rd - Solo registro destino
+                self.vidx = 0
+                self.rd = tokens[1].strip()
+            elif self.op == "VSIGN":
+                # VSIGN rd, vidx
+                self.rd = tokens[1].strip(',')
+                self.vidx = int(tokens[2].strip())
+            elif self.op == "VVERIF":
+                # VVERIF vidx, rd
+                self.vidx = int(tokens[1].strip(','))
+                self.rd = tokens[2].strip()
 
         else:
             raise ValueError(f"Unknown instruction: {self.op}")
@@ -136,10 +137,19 @@ class Instruction:
             return f"{self.op} {self.rd}, {self.immediate}"
         elif self.op == "JR":
             return f"{self.op} {self.rs1}"
-        elif self.op in VAULT_INSTRS:
+        elif self.op in V_TYPE_INSTRS:
             if self.op == "VSTORE":
-                return f"{self.op} {self.vidx}, {self.rs1}"
-            return f"{self.op} {self.vidx}"
+                return f"{self.op} {self.vidx}, {self.rd}"
+            elif self.op == "VINIT":
+                return f"{self.op}"
+            elif self.op == "HBLOCK":
+                return f"{self.op} {self.rd}"
+            elif self.op in {"HMULK", "HMODP", "HFINAL"}:
+                return f"{self.op} {self.rd}"
+            elif self.op == "VSIGN":
+                return f"{self.op} {self.rd}, {self.vidx}"
+            elif self.op == "VVERIF":
+                return f"{self.op} {self.vidx}, {self.rd}"
         elif self.op == "HBLOCK":
             return f"{self.op} {self.rs1}"
         elif self.op in {"HMULK", "HMODP"}:

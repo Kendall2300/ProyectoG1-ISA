@@ -39,6 +39,18 @@ B_FUNCT_CODES = {
     "BEQ": 0x00, "BNE": 0x01, "BLT": 0x02, "BGE": 0x03
 }
 
+# === Tabla de funct para instrucciones V-type (5 bits) ===
+V_FUNCT_CODES = {
+    # Vault operations (Opcode 0x10)
+    "VSTORE": 0x00, "VINIT": 0x01,
+    
+    # Hash operations (Opcode 0x11) 
+    "HBLOCK": 0x00, "HMULK": 0x01, "HMODP": 0x02, "HFINAL": 0x03,
+    
+    # Signature operations (Opcode 0x12)
+    "VSIGN": 0x00, "VVERIF": 0x01
+}
+
 def reg_num(reg):
     try:
         return int(reg.replace('R', '').strip())
@@ -103,11 +115,28 @@ def encode_JR(op, instr):
     return (opcode << 26) | (rs1 << 21)
 
 def encode_V(op, instr):
-    # Vault/Hash/Sign family: we place vidx/rd in the rs1/rd fields as appropriate.
+    # Nuevo formato V: opcode | vidx | rd | funct | reserved (11 bits)
+    # |31----26|25---21|20---16|15---11|10-----------0|
+    # | opcode |  vidx |  rd   | funct |   reserved   |
     opcode = OPCODES[op]
-    # Different V ops have different operand semantics; assembler selects mapping below.
-    # This function is a fallback; higher-level logic will use encode_I/R or custom packing.
-    return (opcode << 26)
+    
+    # Extraer campos según el tipo de instrucción V
+    if hasattr(instr, 'vidx'):
+        vidx = instr.vidx & 0x1F  # 5 bits
+    else:
+        vidx = 0
+        
+    if hasattr(instr, 'rd') and instr.rd:
+        rd = reg_num(instr.rd) & 0x1F  # 5 bits
+    elif hasattr(instr, 'rs1') and instr.rs1:
+        rd = reg_num(instr.rs1) & 0x1F  # Para HBLOCK que usa rs1
+    else:
+        rd = 0
+        
+    funct = V_FUNCT_CODES.get(op, 0) & 0x1F  # 5 bits
+    reserved = 0  # 11 bits
+    
+    return (opcode << 26) | (vidx << 21) | (rd << 16) | (funct << 11) | reserved
 
 def encode_SYS(op):
     return (OPCODES[op] << 26)
@@ -165,46 +194,9 @@ def assemble(input_file, output_file):
             elif op == "JR":
                 code = encode_JR(op, instr)
 
-            # Vault / Hash / Sign (special encodings)
-            elif op in {"VSTORE", "VINIT"}:
-                # VSTORE vidx, rs1  -> opcode | vidx in rs1(5) | rs1 reg in rs2
-                opcode = OPCODES[op]
-                vidx = instr.vidx
-                rs1_reg = reg_num(instr.rs1) if instr.rs1 else 0
-                code = (opcode << 26) | (vidx << 21) | (rs1_reg << 16)
-
-            elif op == "HBLOCK":
-                # HBLOCK rs1 (use I-like packing: opcode | rs1 | rd=0 | imm=0)
-                opcode = OPCODES[op]
-                rs1 = reg_num(instr.rs1)
-                code = (opcode << 26) | (rs1 << 21)
-
-            elif op in {"HMULK", "HMODP"}:
-                # HMULK rd, rs1  -> pkg as I: opcode | rs1 | rd
-                opcode = OPCODES[op]
-                rd = reg_num(instr.rd)
-                rs1 = reg_num(instr.rs1)
-                code = (opcode << 26) | (rs1 << 21) | (rd << 16)
-
-            elif op == "HFINAL":
-                # HFINAL rd -> opcode | rd in bits [20:16]
-                opcode = OPCODES[op]
-                rd = reg_num(instr.rd)
-                code = (opcode << 26) | (0 << 21) | (rd << 16)
-
-            elif op == "VSIGN":
-                # VSIGN rd, vidx -> opcode | vidx in rs1 | rd in rd field
-                opcode = OPCODES[op]
-                rd = reg_num(instr.rd)
-                vidx = instr.vidx
-                code = (opcode << 26) | (vidx << 21) | (rd << 16)
-
-            elif op == "VVERIF":
-                # VVERIF rs, vidx -> opcode | vidx in rs1 | rs register in rs2
-                opcode = OPCODES[op]
-                rs = reg_num(instr.rs)
-                vidx = instr.vidx
-                code = (opcode << 26) | (vidx << 21) | (rs << 16)
+            # Vault / Hash / Sign (usando formato V unificado)
+            elif op in {"VSTORE", "VINIT", "HBLOCK", "HMULK", "HMODP", "HFINAL", "VSIGN", "VVERIF"}:
+                code = encode_V(op, instr)
 
             # System
             elif op in {"NOP", "HALT"}:
@@ -225,3 +217,11 @@ def assemble(input_file, output_file):
 
     print(f"[OK] Archivo binario generado: {output_file}")
     print(f"Total de instrucciones ensambladas: {len(bin_lines)}")
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) != 3:
+        print("Uso: python assembler.py <archivo.asm> <archivo.bin>")
+        sys.exit(1)
+    
+    assemble(sys.argv[1], sys.argv[2])

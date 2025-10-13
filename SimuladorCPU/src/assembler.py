@@ -129,7 +129,7 @@ def encode_B(op, instr):
 
     Format:
         | opcode(6) | rs1(5) | rs2(5) | funct(4) | offset(12) |
-    """  |
+    """
     opcode = OPCODES[op]
     rs1 = reg_num(instr.rs1)
     rs2 = reg_num(instr.rs2)

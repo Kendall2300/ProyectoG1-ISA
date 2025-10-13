@@ -1,5 +1,13 @@
-# assembler.py
-# Versión 2.1 — Completo: R, I, S, B, J, Vault/Hash/Sign (SecureRISC)
+"""
+assembler.py — Versión 2.1
+==========================
+
+This assembler translates assembly code defined by the "SecureRISC" ISA
+into 32-bit binary machine code. It supports R, I, S, B, J, and V formats,
+including extensions for Vault, Hash, and Signature operations.
+
+Versión: 2.1
+"""
 
 import re
 from Instruction import parse_instructions
@@ -52,6 +60,18 @@ V_FUNCT_CODES = {
 }
 
 def reg_num(reg):
+    """
+    Converts a register name (e.g., 'R5') to its integer value.
+
+    Args:
+        reg (str): Register name in the format 'R<num>'.
+
+    Returns:
+        int: The register number.
+
+    Raises:
+        ValueError: If the register name format is invalid.
+    """
     try:
         return int(reg.replace('R', '').strip())
     except Exception:
@@ -59,6 +79,15 @@ def reg_num(reg):
 
 # --- Encoders por formato (alineados al ISA) ---
 def encode_R(op, instr):
+    """
+    Encodes an R-type (arithmetic/logical) instruction.
+
+    Format:
+        | opcode(6) | rs1(5) | rs2(5) | rd(5) | shamt(5) | funct(6) |
+
+    Returns:
+        int: The encoded 32-bit instruction.
+    """
     opcode = OPCODES[op]
     rs1 = reg_num(instr.rs1)
     rs2 = reg_num(instr.rs2) if instr.rs2 else 0
@@ -68,9 +97,12 @@ def encode_R(op, instr):
     return (opcode << 26) | (rs1 << 21) | (rs2 << 16) | (rd << 11) | (shamt << 6) | funct
 
 def encode_I(op, instr):
-    # Nuevo formato I: opcode | rs1 | rd | funct | imm (12 bits)
-    # |31----26|25---21|20---16|15---12|11-------------0|
-    # | opcode |  rs1  |  rd   | funct |   immediate    |
+    """
+    Encodes an I-type instruction (immediate arithmetic or LUI).
+
+    Format:
+        | opcode(6) | rs1(5) | rd(5) | funct(4) | immediate(12) |
+    """
     opcode = OPCODES[op]
     rs1 = reg_num(instr.rs1) if instr.rs1 else 0
     rd  = reg_num(instr.rd)
@@ -79,7 +111,12 @@ def encode_I(op, instr):
     return (opcode << 26) | (rs1 << 21) | (rd << 16) | (funct << 12) | imm
 
 def encode_S(op, instr):
-    # LD/SD: opcode | base(rs1) | src/rd (rs2) | offset (16)
+    """
+    Encodes an S-type instruction (Load/Store).
+
+    Format:
+        | opcode(6) | base(5) | src/rd(5) | offset(16) |
+    """
     opcode = OPCODES[op]
     base = reg_num(instr.rs1)
     src  = reg_num(instr.rs2)
@@ -87,9 +124,12 @@ def encode_S(op, instr):
     return (opcode << 26) | (base << 21) | (src << 16) | offset
 
 def encode_B(op, instr):
-    # Nuevo formato B: opcode | rs1 | rs2 | funct | offset (12 bits)
-    # |31----26|25---21|20---16|15---12|11-----------0|
-    # | opcode |  rs1  |  rs2  | funct |   offset     |
+    """
+    Encodes a B-type instruction (conditional branch).
+
+    Format:
+        | opcode(6) | rs1(5) | rs2(5) | funct(4) | offset(12) |
+    """  |
     opcode = OPCODES[op]
     rs1 = reg_num(instr.rs1)
     rs2 = reg_num(instr.rs2)
@@ -98,7 +138,12 @@ def encode_B(op, instr):
     return (opcode << 26) | (rs1 << 21) | (rs2 << 16) | (funct << 12) | offset
 
 def encode_J(op, instr):
-    # Formato J para J y JAL: opcode | address (26 bits)
+    """
+    Encodes a J-type instruction (unconditional jump).
+
+    Format:
+        | opcode(6) | address(26) |
+    """
     opcode = OPCODES[op]
     if op == "JAL":
         # JAL rd, addr -> necesitamos rd en el address field (modificar si necesario)
@@ -109,15 +154,23 @@ def encode_J(op, instr):
         return (opcode << 26) | addr
 
 def encode_JR(op, instr):
-    # JR rs1 -> opcode | rs1 | reserved (21 bits)
+    """
+    Encodes a JR instruction (jump to register).
+
+    Format:
+        | opcode(6) | rs1(5) | reserved(21) |
+    """
     opcode = OPCODES[op]
     rs1 = reg_num(instr.rs1)
     return (opcode << 26) | (rs1 << 21)
 
 def encode_V(op, instr):
-    # Nuevo formato V: opcode | vidx | rd | funct | reserved (11 bits)
-    # |31----26|25---21|20---16|15---11|10-----------0|
-    # | opcode |  vidx |  rd   | funct |   reserved   |
+    """
+    Encodes a V-type instruction (Vault, Hash, Signature).
+
+    Format:
+        | opcode(6) | vidx(5) | rd(5) | funct(5) | reserved(11) |
+    """
     opcode = OPCODES[op]
     
     # Extraer campos según el tipo de instrucción V
@@ -139,10 +192,30 @@ def encode_V(op, instr):
     return (opcode << 26) | (vidx << 21) | (rd << 16) | (funct << 11) | reserved
 
 def encode_SYS(op):
+    """
+    Encodes system instructions (NOP, HALT).
+
+    Format:
+        | opcode(6) | zeros(26) |
+    """
     return (OPCODES[op] << 26)
 
 # --- Ensamblado principal ---
 def assemble(input_file, output_file):
+    """
+    Assembles an `.asm` file into its `.bin` binary equivalent.
+
+    Steps:
+        1. Cleans comments and whitespace.
+        2. Converts hexadecimal immediates to decimal.
+        3. Uses `parse_instructions()` to create instruction objects.
+        4. Encodes each instruction according to its type.
+        5. Writes the 32-bit binary instructions to output file.
+
+    Args:
+        input_file (str): Path to the input `.asm` file.
+        output_file (str): Path to the output `.bin` file.
+    """
     with open(input_file, 'r') as f:
         lines = f.readlines()
 

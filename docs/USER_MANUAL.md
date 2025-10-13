@@ -111,6 +111,10 @@ El simulador permite agregar, firmar y autenticar documentos:
 
 ## 8. Créditos
 
-Proyecto para el curso **Arquitectura de Computadores** — **Ingeniería en Computadores**.
-Autores: Equipo G1.
-Repositorio: `https://github.com/Kendall2300/ProyectoG1-ISA`.
+### Desarrolladores Principales
+- **Kendall Martinez C**
+- **Andres Alfaro M**
+- **Daniel Ureña L**
+- **Marco Villatoro C**
+
+* Repositorio: `https://github.com/Kendall2300/ProyectoG1-ISA`.

@@ -12,16 +12,15 @@ Escuela de Ingeniería en Computadores
 
 ## Tabla de Contenidos
 
-- [Descripción](#-descripción)
-- [Características Principales](#-características-principales)
-- [Estructura del Repositorio](#-estructura-del-repositorio)
-- [Requisitos](#-requisitos)
-- [Instalación](#-instalación)
-- [Ejemplos](#-ejemplos)
-- [Documentación](#-documentación)
-- [Desarrollo](#-desarrollo)
-- [Equipo](#-equipo)
-- [Referencias](#-referencias)
+- [Descripción](#descripción)
+- [Características Principales](#características-principales)
+- [Estructura del Repositorio](#estructura-del-repositorio)
+- [Requisitos](#requisitos)
+- [Instalación](#instalación)
+- [Documentación](#documentación)
+- [Desarrollo](#desarrollo)
+- [Equipo](#equipo)
+- [Referencias](#referencias)
 
 ---
 
@@ -78,85 +77,42 @@ Este proyecto incluye:
 
 ```
 SecureRISC/
-├── README.md                   # Este archivo
-├── LICENSE                     # Licencia del proyecto
-├── .gitignore                  # Archivos ignorados por Git
-├── requirements.txt            # Dependencias Python
-├── requirements-dev.txt        # Dependencias de desarrollo
+├── README.md                               # Este archivo
+├── LICENSE                                 # Licencia del proyecto
+├── .gitignore                              # Archivos ignorados por Git
 │
-├── docs/                       # Documentación
-│   ├── ISA.md                 # Especificación completa de la ISA
-│   ├── ENCODING.md            # Referencia de codificación binaria
-│   ├── green_card.html        # Hoja de referencia rápida
-│   ├── green_card.pdf         # Green Card en PDF
-│   ├── CPU_MODEL.md           # Documentación del simulador
-│   ├── ASSEMBLER.md           # Guía del ensamblador
-│   ├── USER_MANUAL.md         # Manual de usuario
-│   ├── VALIDATION.md          # Reporte de validación
-│   ├── diagrams/              # Diagramas de arquitectura
-│   │   ├── isa_overview.png
-│   │   ├── pipeline.png
-│   │   ├── microarchitecture.png
-│   │   └── security_arch.png
-│   └── analysis/              # Gráficas de análisis
-│       ├── instruction_width_analysis.png
-│       ├── register_count_analysis.png
-│       ├── hash_instruction_analysis.png
-│       ├── vault_security_analysis.png
-│       ├── pipeline_analysis.png
-│       └── addressing_modes_analysis.png
+├── docs/                                   # Documentación
+│   ├── isa.md                              # Especificación completa de la ISA
+│   ├── green_card.html                     # Hoja de referencia rápida
+│   ├── USER_MANUAL.md                      # Manual de usuario
+│   ├── Diagrama.png                        # Diagrama de microarquitectura
+│   └── analysis/                           # Gráficas de análisis
+│       ├── instruction_width_analysis.png  #
+│       └── addressing_modes_analysis.png   #
 │
-├── src/                       # Código fuente
-│   ├── __init__.py
-│   ├── assembler.py           # Ensamblador SecureRISC
-│   ├── cpu.py                 # Simulador del CPU
-│   ├── memory.py              # Sistema de memoria
-│   ├── registers.py           # Banco de registros
-│   ├── vault.py               # Bóveda segura
-│   ├── alu.py                 # Unidad aritmético-lógica
-│   ├── hash_unit.py           # Unidad ToyMDMA
-│   ├── pipeline.py            # Pipeline del CPU
-│   └── utils.py               # Utilidades
-│
-├── examples/                  # Programas de ejemplo
-│   ├── hello_world.asm        # Programa simple
-│   ├── digital_signature.asm  # Firma digital completa
-│   ├── signature_verify.asm   # Verificación de firma
-│   ├── hash_calculation.asm   # Cálculo de hash ToyMDMA
-│   ├── test_all_instructions.asm  # Test completo
-│   └── function_calls.asm     # Llamadas a función
-│
-├── tests/                     # Tests
-│   ├── __init__.py
-│   ├── test_assembler.py      # Tests del ensamblador
-│   ├── test_cpu.py            # Tests del CPU
-│   ├── test_instructions.py   # Tests de instrucciones
-│   ├── test_hash.py           # Tests de ToyMDMA
-│   ├── test_vault.py          # Tests de bóveda
-│   └── integration/           # Tests de integración
-│       ├── test_signature.py
-│       └── test_full_system.py
-│
-├── scripts/                   # Scripts de utilidad
-│   ├── isa_analysis.py        # Análisis de características ISA
-│   ├── run_tests.sh           # Ejecutar todos los tests
-│   └── benchmark.py           # Benchmarks de rendimiento
-│
-├── test_files/                # Archivos de prueba
-│   ├── input/                 # Archivos para firmar
-│   │   ├── test1.txt
-│   │   ├── test2.bin
-│   │   └── mensaje.txt
-│   ├── signed/                # Archivos firmados
-│   │   ├── test1_signed.txt
-│   │   └── test2_signed.bin
-│   └── results/               # Resultados de validación
-│       ├── validation_report.txt
-│       └── metrics.json
-│
-└── presentation/              # Materiales de presentación
-    ├── slides.pdf            # Presentación
-    └── demo_script.md        # Script de demostración
+├── SimuladorCPU/                           # Carpeta contenedora
+│   ├── gitignore                           # Archivos ignorados por Git
+│   ├── readme.md                           # Instrucciones para iniciar el simulador
+│   └── src                                 # Codigo Fuente
+│       ├── CPU                             # Archivos del CPU
+|       |   ├── HazardUnit.py               
+|       |   ├── Memory.py                    
+|       |   ├── Pipeline.py                  
+|       |   └── RegisterFile.py              
+│       ├── UI                              # Archivos de Interfaz Grafica
+|       |   ├── Console.py                  
+|       |   ├── MemoryView.py                
+|       |   ├── RegisterView.py              
+|       |   └── TextEditor.py                
+│       ├── App.py                          # Codigo Principal
+│       ├── Instruction.py                  # Set de instrucciones
+│       ├── assembler.py                    # Traductor de lenguaje
+│       └── main.py                         # Archivo Principal
+└── testASM                                 # Codigos de pruebas
+    ├── firmar_archivo.asm                  # Prueba de firma de archivo
+    ├── test1.asm                           # Prueba de algunos comandos
+    ├── test_all_instructions               # Prueba de todas las instrucciones
+    └── verificar_firma.asm                 # Prueba para verificar firma
 ```
 
 ---
@@ -191,8 +147,8 @@ git --version
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/TU_USUARIO/SecureRISC.git
-cd SecureRISC
+git clone https://github.com/Kendall2300/ProyectoG1-ISA
+cd SimuladorCPU/src
 
 # 2. Crear entorno virtual (recomendado)
 python3 -m venv venv
@@ -204,278 +160,8 @@ source venv/bin/activate
 # En Windows:
 venv\Scripts\activate
 
-# 4. Instalar dependencias
-pip install -r requirements.txt
-
-# 5. Verificar instalación
-python src/assembler.py --version
-python scripts/isa_analysis.py --help
-```
-
----
-
-## Ejemplos
-
-### Ejemplo 1: Programa Simple - Suma de Números
-
-**Archivo:** `examples/simple_add.asm`
-
-```assembly
-# ==========================================
-# Programa simple: suma dos números
-# ==========================================
-
-    ADDI R1, R0, 10        # R1 = 10
-    ADDI R2, R0, 20        # R2 = 20
-    ADD  R3, R1, R2        # R3 = R1 + R2 = 30
-    
-    # Guardar resultado en memoria
-    LUI  R10, 0x3000       # R10 = dirección base
-    SD   R3, 0(R10)        # MEM[0x3000] = 30
-    
-    HALT                   # Detener
-```
-
-**Ejecutar:**
-```bash
-python src/assembler.py examples/simple_add.asm -o add.bin --dump
-python src/cpu.py add.bin --debug --dump-registers
-```
-
-**Salida esperada:**
-```
-Ensamblado:
-  0x0000: 0x0C01000A  ADDI R1, R0, 10
-  0x0004: 0x0C020014  ADDI R2, R0, 20
-  0x0008: 0x00422000  ADD  R3, R1, R2
-  0x000C: 0x0C0A3000  LUI  R10, 0x3000
-  0x0010: 0x15430000  SD   R3, 0(R10)
-  0x0014: 0xFC000001  HALT
-
-Ejecución:
-  [Ciclo 1-3]  R1 ← 10
-  [Ciclo 4-6]  R2 ← 20
-  [Ciclo 7-9]  R3 ← 30
-  [Ciclo 10-12] R10 ← 0x3000...
-  [Ciclo 13-15] MEM[0x3000] ← 30
-  [Ciclo 16] HALT
-
-Registros finales:
-  R1  = 0x000000000000000A (10)
-  R2  = 0x0000000000000014 (20)
-  R3  = 0x000000000000001E (30)
-  R10 = 0x3000000000000000
-
-Memoria 0x3000: 0x000000000000001E
-```
-
-### Ejemplo 2: Firma Digital Completa
-
-**Archivo:** `examples/digital_signature.asm`
-
-```assembly
-# ==========================================
-# Firma Digital con SecureRISC
-# ==========================================
-
-# 1. Cargar llave privada en bóveda
-    LUI    R1, 0x1234           # Llave privada (parte alta)
-    VSTORE 0, R1                # Guardar en VAULT[0]
-
-# 2. Cargar valores iniciales de hash (A, B, C, D)
-    LUI    R2, 0x6745           # Valor inicial A
-    VSTORE 4, R2                # INIT[0] = A
-    
-    LUI    R3, 0x23C1           # Valor inicial B
-    VSTORE 5, R3                # INIT[1] = B
-    
-    LUI    R4, 0xEFCD           # Valor inicial C
-    VSTORE 6, R4                # INIT[2] = C
-    
-    LUI    R5, 0xAB89           # Valor inicial D
-    VSTORE 7, R5                # INIT[3] = D
-
-# 3. Inicializar estado de hash
-    VINIT  0                    # Cargar INIT[0-3] → HS_A,B,C,D
-
-# 4. Configurar procesamiento del archivo
-    LUI    R10, 0x2000          # R10 = dirección base del archivo
-    ADDI   R11, R0, 16          # R11 = número de bloques (16 × 8 bytes = 128 bytes)
-
-# 5. Loop de procesamiento de hash
-hash_loop:
-    LD     R1, 0(R10)           # Cargar bloque de 64 bits
-    HBLOCK R1                   # Procesar con ToyMDMA (1 ciclo!)
-    ADDI   R10, R10, 8          # Avanzar al siguiente bloque
-    SUBI   R11, R11, 1          # Decrementar contador
-    BNE    R11, R0, hash_loop   # Continuar si quedan bloques
-
-# 6. Generar firma digital
-    VSIGN  R4, 0                # Firma en R4-R7 usando VAULT[0]
-                                # R4 = HS_A XOR VAULT[0]
-                                # R5 = HS_B XOR VAULT[0]
-                                # R6 = HS_C XOR VAULT[0]
-                                # R7 = HS_D XOR VAULT[0]
-
-# 7. Guardar firma al final del archivo
-    SD     R4, 0(R10)           # Guardar primeros 64 bits de firma
-    SD     R5, 8(R10)           # Guardar segundos 64 bits
-    SD     R6, 16(R10)          # Guardar terceros 64 bits
-    SD     R7, 24(R10)          # Guardar últimos 64 bits
-
-# 8. Finalizar
-    HALT                        # Detener ejecución
-```
-
-**Preparar y ejecutar:**
-```bash
-# 1. Crear archivo de prueba
-echo "Este es un mensaje secreto para firmar" > test_files/input/mensaje.txt
-
-# 2. Ensamblar programa
-python src/assembler.py examples/digital_signature.asm \
-    -o signature.bin \
-    --verbose \
-    --dump
-
-# 3. Ejecutar (el simulador carga el archivo en 0x2000)
-python src/cpu.py signature.bin \
-    --load test_files/input/mensaje.txt@0x2000 \
-    --metrics \
-    --dump-memory 0x2000:0x2100 \
-    --dump-registers
-```
-
-**Salida esperada:**
-```
-Cargando archivo: test_files/input/mensaje.txt → 0x2000 (40 bytes)
-Padding a múltiplo de 8 bytes: 40 → 128 bytes (16 bloques)
-
-Ejecutando...
-[Ciclo 1-15]   Inicialización de bóveda
-[Ciclo 16]     VINIT: Estado hash inicializado
-[Ciclo 17-20]  Configuración de loop
-[Ciclo 21]     Hash loop inicio
-[Ciclo 22]     LD R1 ← bloque 1
-[Ciclo 23]     HBLOCK: bloque 1 procesado ← 1 ciclo!
-[...]
-[Ciclo 150]    Hash loop completado (16 bloques)
-[Ciclo 151]    VSIGN: Firma generada
-[Ciclo 152-155] Guardar firma en memoria
-[Ciclo 156]    HALT
-
-Métricas:
-  Ciclos totales:        156
-  Instrucciones:         129
-  CPI:                   1.21
-  Bloques hash:          16
-  Ciclos/bloque:         1  ← Aceleración!
-
-Memoria 0x2080-0x2100 (Firma):
-  0x2080: A3 B4 C5 D6 E7 F8 09 1A  ← R4 (HS_A XOR llave)
-  0x2088: 1B 2C 3D 4E 5F 60 71 82  ← R5 (HS_B XOR llave)
-  0x2090: 93 A4 B5 C6 D7 E8 F9 0A  ← R6 (HS_C XOR llave)
-  0x2098: 0B 1C 2D 3E 4F 50 61 72  ← R7 (HS_D XOR llave)
-
-Firma generada exitosamente: 32 bytes al final del archivo
-```
-
-### Ejemplo 3: Verificación de Firma
-
-**Archivo:** `examples/signature_verify.asm`
-
-```assembly
-# ==========================================
-# Verificación de Firma Digital
-# ==========================================
-
-# 1. Cargar la misma llave privada
-    LUI    R1, 0x1234
-    VSTORE 0, R1
-
-# 2. Cargar mismos valores iniciales
-    LUI    R2, 0x6745
-    VSTORE 4, R2
-    LUI    R3, 0x23C1
-    VSTORE 5, R3
-    LUI    R4, 0xEFCD
-    VSTORE 6, R4
-    LUI    R5, 0xAB89
-    VSTORE 7, R5
-
-# 3. Recalcular hash del archivo original
-    VINIT  0
-    LUI    R10, 0x2000
-    ADDI   R11, R0, 16
-
-verify_loop:
-    LD     R1, 0(R10)
-    HBLOCK R1
-    ADDI   R10, R10, 8
-    SUBI   R11, R11, 1
-    BNE    R11, R0, verify_loop
-
-# 4. Extraer hash recalculado
-    HFINAL R12                  # Hash en R12-R15
-
-# 5. Cargar firma almacenada
-    LD     R8, 0(R10)           # Firma en R8-R11
-    LD     R9, 8(R10)
-    LD     R10, 16(R10)
-    LD     R11, 24(R10)
-
-# 6. Recuperar hash de la firma
-    VVERIF R8, 0                # HS ← firma XOR VAULT[0]
-
-# 7. Extraer hash recuperado
-    HFINAL R16                  # Hash recuperado en R16-R19
-
-# 8. Comparar hashes (R12-R15 vs R16-R19)
-    XOR    R20, R12, R16        # Diferencias en R20-R23
-    XOR    R21, R13, R17
-    XOR    R22, R14, R18
-    XOR    R23, R15, R19
-    
-    OR     R24, R20, R21        # Si alguno != 0, firma inválida
-    OR     R24, R24, R22
-    OR     R24, R24, R23
-    
-    BEQ    R24, R0, valid       # Si R24 == 0, firma válida
-
-invalid:
-    ADDI   R1, R0, 0            # R1 = 0 (inválido)
-    HALT
-
-valid:
-    ADDI   R1, R0, 1            # R1 = 1 (válido)
-    HALT
-```
-
-**Ejecutar:**
-```bash
-python src/assembler.py examples/signature_verify.asm -o verify.bin
-python src/cpu.py verify.bin \
-    --load test_files/signed/mensaje_signed.txt@0x2000 \
-    --metrics
-
-# Verificar resultado
-echo "Resultado de verificación: R1 = 1 significa firma válida"
-```
-
-### Ejemplo 4: Abrir la Green Card
-
-```bash
-# Navegador (Linux)
-xdg-open docs/green_card.html
-
-# Navegador (Mac)
-open docs/green_card.html
-
-# Navegador (Windows)
-start docs/green_card.html
-
-# PDF
-xdg-open docs/green_card.pdf
+# 4. Verificar instalación
+python3 main.py --version
 ```
 
 ---
@@ -488,117 +174,12 @@ xdg-open docs/green_card.pdf
 |-----------|-------------|-----------|
 | **ISA Specification** | Especificación completa de la ISA con justificaciones | [`docs/ISA.md`](docs/isa.md) |
 | **Green Card** | Hoja de referencia rápida (HTML/PDF) | [`docs/green_card.html`](docs/green_card.html) |
-| **Diagrama de Arquitectura** | Diagrama de arquitectura desarrollada | [`docs/diagrama.png`](docs/diagrama.png) |
-| **CPU Model** | Documentación del simulador | [`docs/CPU_MODEL.md`](docs/CPU_MODEL.md) |
+| **Diagrama de Arquitectura** | Diagrama de arquitectura desarrollada | [`docs/diagrama.png`](docs/Diagrama.png) |
 | **User Manual** | Manual de usuario completo | [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md) |
 
 ### Características de la ISA
 
-#### Registros
-
-- **R0-R31**: 32 registros de propósito general (64 bits)
-  - R0: Siempre 0 (hardwired)
-  - R1: Valor de retorno
-  - R2-R7: Argumentos
-  - R8-R15: Temporales (caller-saved)
-  - R16-R23: Salvados (callee-saved)
-  - R24-R28: Temporales adicionales
-  - R29: Frame pointer (FP)
-  - R30: Stack pointer (SP)
-  - R31: Link register (LR)
-
-- **Registros especiales**: PC (64 bits), FLAGS (8 bits: Z, N, C, V)
-
-- **Bóveda (aislada del espacio de memoria)**: 
-  - VAULT[0-3]: 4 llaves privadas de 64 bits
-  - INIT[0-3]: 4 valores iniciales de hash (A, B, C, D)
-
-- **Estado interno de hash**: HS_A, HS_B, HS_C, HS_D (no visibles directamente)
-
-#### Formatos de Instrucción (32 bits fijos)
-
-- **R**: Registro-Registro (ADD, SUB, MUL, AND, OR, XOR, SLL, SRL, ROL, ROR)
-- **I**: Inmediato (ADDI, SUBI, LUI, LD)
-- **S**: Store (SD)
-- **B**: Branch (BEQ, BNE, BLT, BGE)
-- **J**: Jump (J, JAL)
-- **V**: Vault/Security (VSTORE, VINIT, HBLOCK, HMULK, HMODP, HFINAL, VSIGN, VVERIF)
-
-#### Instrucciones por Categoría
-
-| Categoría | Cantidad | Ejemplos |
-|-----------|----------|----------|
-| **Aritméticas** | 5 | ADD, SUB, MUL, DIV, MOD |
-| **Lógicas** | 4 | AND, OR, XOR, NOT |
-| **Shift/Rotate** | 4 | SLL, SRL, ROL, ROR |
-| **Inmediato** | 7 | ADDI, SUBI, LUI, ANDI, ORI, XORI, SLLI |
-| **Memoria** | 2 | LD, SD |
-| **Control** | 7 | BEQ, BNE, BLT, BGE, J, JAL, JR |
-| **Seguridad** | 9 | VSTORE, VINIT, HBLOCK, HMULK, HMODP, HFINAL, VSIGN, VVERIF |
-| **Sistema** | 2 | NOP, HALT |
-
-**Total: ~42 instrucciones**
-
-### Diferenciación de Instrucciones
-
-SecureRISC usa tres estrategias para diferenciar instrucciones:
-
-#### 1. Campo `funct` (Tipos R y V)
-Instrucciones con el mismo opcode se diferencian por el campo `funct`:
-
-**Ejemplo - Opcode 0x00 (Aritméticas):**
-- ADD: funct = 0x00
-- SUB: funct = 0x01
-- MUL: funct = 0x02
-- DIV: funct = 0x03
-- MOD: funct = 0x04
-
-#### 2. Opcodes Únicos (Tipos I, S, J)
-Cada instrucción tiene su propio opcode:
-- ADDI: 0x03
-- LD: 0x04
-- SD: 0x05
-- J: 0x07
-- JR: 0x08
-
-#### 3. Bits del Offset (Branches - Tipo B)
-Branches usan bits 15-14 del offset para diferenciar tipo:
-- BEQ: bits[15:14] = 00
-- BNE: bits[15:14] = 01
-- BLT: bits[15:14] = 10
-- BGE: bits[15:14] = 11
-
-### Sintaxis Assembly
-
-```assembly
-# Comentarios empiezan con #
-
-# Etiquetas para saltos
-main:
-    ADDI R1, R0, 100       # R1 = 100
-    
-# Instrucciones con inmediato
-    LUI  R2, 0x1000        # R2 = 0x1000 << 48
-
-# Memoria: offset(registro)
-    LD   R3, 8(R10)        # R3 = MEM[R10 + 8]
-    SD   R3, 16(R10)       # MEM[R10 + 16] = R3
-
-# Branches con labels
-loop:
-    SUBI R1, R1, 1
-    BNE  R1, R0, loop      # while (R1 != 0)
-
-# Llamada a función
-    JAL  R31, function     # R31 = PC+4; PC = function
-    JR   R31               # return
-
-# Instrucciones de seguridad
-    VSTORE 0, R1           # Guardar llave en bóveda
-    VINIT  0               # Inicializar hash
-    HBLOCK R1              # Procesar bloque de hash
-    VSIGN  R4, 0           # Generar firma
-```
+Revisar documentacion especifica: [`docs/ISA.md`](docs/isa.md).
 
 ---
 
@@ -616,16 +197,9 @@ python3 -m venv venv
 source venv/bin/activate  # Linux/Mac
 # venv\Scripts\activate   # Windows
 
-# 3. Instalar dependencias de desarrollo
-pip install -r requirements-dev.txt
-
-# 4. Configurar pre-commit hooks (opcional)
+# 3. Configurar pre-commit hooks (opcional)
 pre-commit install
 
-# 5. Verificar instalación
-pytest --version
-black --version
-pylint --version
 ```
 
 ---
@@ -824,7 +398,7 @@ Después de la entrega, el proyecto puede abrirse para contribuciones educativas
 
 ### Versión Actual
 
-**v1.0.0**
+**v1.0.1**
 
 ---
 

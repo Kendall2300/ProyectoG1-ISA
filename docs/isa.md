@@ -615,30 +615,6 @@ verify_loop:
 
 ---
 
-## Métricas de Rendimiento Estimadas
-
-### Procesamiento de Hash ToyMDMA
-
-- **Ciclos por bloque:** 1 ciclo (con HBLOCK)
-- **Archivo de 1KB (128 bloques):** ~128 ciclos
-- **Speedup vs software:** 50x
-- **Throughput:** 800 MB/s @ 800 MHz
-
-### Firma Digital
-
-- **Generación:** Hash + VSIGN = ~130 ciclos
-- **Verificación:** Hash + VVERIF + comparación = ~135 ciclos
-- **Overhead de seguridad:** < 1%
-
-### Área Estimada del CPU
-
-- **Banco de registros:** 30%
-- **ALU + Unidades hash:** 35%
-- **Control + Pipeline:** 25%
-- **Bóveda segura:** 10%
-
----
-
 ## Referencias
 
 1. **Proyecto Grupal #1 Especificación** - Dr.-Ing. Jeferson González Gómez
@@ -652,12 +628,8 @@ verify_loop:
 ## Archivos Relacionados
 
 - `green_card.pdf` - Hoja de referencia rápida de instrucciones
-- `isa_analysis.py` - Script de análisis de características
-- `assembler.py` - Ensamblador SecureRISC
-- `../src/cpu_model.py` - Modelo de simulación del CPU
-- `../examples/digital_signature.asm` - Ejemplo completo de firma digital
 
 ---
 
 **Última actualización:** Octubre 2025  
-**Versión ISA:** 1.1
+**Versión ISA:** 1.3

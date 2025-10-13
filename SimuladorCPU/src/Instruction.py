@@ -1,5 +1,9 @@
-# Instruction.py
-# Parser de instrucciones (ampliado para Vault/Hash/Sign)
+"""
+Instruction.py
+Instruction parser (extended for Vault/Hash/Sign instructions)
+Handles decoding of assembly-like instruction strings into structured objects
+that classify them by type (R, I, S, B, V, or system).
+"""
 
 R_TYPE_INSTRS = {"ADD", "SUB", "MUL", "DIV", "MOD", "AND", "OR", "XOR", "NOT", "SLL", "SRL", "ROL"}
 I_TYPE_INSTRS = {"ADDI", "SUBI", "ANDI", "ORI", "XORI", "SLLI", "LUI"}
@@ -9,7 +13,21 @@ V_TYPE_INSTRS = {"VSTORE", "VINIT", "HBLOCK", "HMULK", "HMODP", "HFINAL", "VSIGN
 SYSTEM_TYPE_INSTRS = {"NOP", "HALT"}
 
 class Instruction:
+    """
+    Represents a single parsed instruction.
+
+    This class parses an instruction string and extracts its opcode, registers,
+    immediates, and vault-related fields according to its type.
+    """
     def __init__(self, instr_str: str):
+        """
+        Initialize and parse the given instruction string.
+
+        Args:
+            instr_str (str): Raw instruction line from assembly code.
+        Raises:
+            ValueError: If the instruction is empty or has an invalid format.
+        """
         tokens = instr_str.replace(',', ' ').strip().split()
         if not tokens:
             raise ValueError("Empty instruction")
@@ -118,6 +136,9 @@ class Instruction:
             raise ValueError(f"Unknown instruction: {self.op}")
 
     def __str__(self):
+        """
+        Return a canonical string representation of the instruction.
+        """
         if self.op in R_TYPE_INSTRS:
             if self.op == "NOT":
                 return f"{self.op} {self.rd}, {self.rs1}"
@@ -164,6 +185,14 @@ class Instruction:
             return "INVALID INSTRUCTION"
 
 def parse_instructions(lines: str):
+    """
+    Parse a list of instruction lines into `Instruction` objects.
+
+    Args:
+        lines (list[str]): Lines from an assembly source file.
+    Returns:
+        list[Instruction]: Parsed instruction objects.
+    """
     instr_list = []
     for line in lines:
         line = line.strip()
